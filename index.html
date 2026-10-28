@@ -21,24 +21,22 @@
     <!-- Paystack Inline JS SDK -->
     <script src="https://js.paystack.co/v1/inline.js"></script>
     <script>
-        function payWithPaystack(userEmail, amountInKobo, successCallback) {
+        function payWithPaystack() {
             // Paystack public test key
             const paystackPublicKey = 'pk_test_a25c13f990472e399589d81d2dfdd204caebec47';
 
             let handler = PaystackPop.setup({
                 key: paystackPublicKey,
-                email: userEmail || 'customer@email.com',
-                amount: amountInKobo || (5000 * 100), // Amount in lowest currency unit (Kobo: 5,000 NGN = 500,000 kobo)
+                email: 'customer@email.com',
+                amount: 5000 * 100, // Amount in lowest currency unit (Kobo: 5,000 NGN = 500,000 kobo)
                 currency: 'NGN',
                 ref: 'DEMO_' + Math.floor((Math.random() * 1000000000) + 1), // Unique reference
                 onClose: function() {
-                    // Window closed
+                    alert('Window closed before payment was completed.');
                 },
                 callback: function(response) {
                     // Payment completed successfully
-                    if (typeof successCallback === 'function') {
-                        successCallback(response);
-                    }
+                    alert('Payment successful! Reference: ' + response.reference);
                 }
             });
 
@@ -60,8 +58,9 @@
 <link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  
 <link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  
 <link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  
-<link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  <script type="module" crossorigin src="/assets/index-Dq0yJnJs.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-B6jwLCBB.css">
+<link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  
+<link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  <script type="module" crossorigin src="/assets/index-8_vYzKjZ.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-wV83hF2L.css">
 <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body class="bg-black text-white min-h-screen flex flex-col justify-between select-none font-sans overflow-x-hidden antialiased">
     <!-- SVG Distortion Filter Definition (Place anywhere in DOM body) -->

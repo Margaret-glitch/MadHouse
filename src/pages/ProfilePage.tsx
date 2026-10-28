@@ -85,61 +85,9 @@ export const ProfilePage: React.FC = () => {
     vip_monthly: { id: 'vip_monthly', name: 'VIP Monthly', amount: 3500, termDays: 30 }
   };
 
-  const handleSubscribe = (planId: 'weekly' | 'vip_monthly') => {
-    if (!user) {
-      setPaymentError('Please sign in or create an account to activate your subscription.');
-      setShowAuthModal(true);
-      return;
-    }
-
-    setPaymentError(null);
-    setPaymentSuccessMessage(null);
-
-    const plan = SUBSCRIPTION_PLANS[planId];
-    if (!plan) return;
-
-    const payWindow = window as any;
-    if (typeof payWindow.payWithPaystack === 'function') {
-      payWindow.payWithPaystack(
-        user.email || 'customer@email.com',
-        plan.amount * 100,
-        async (response: any) => {
-          try {
-            const now = new Date();
-            const expiry = new Date(now.getTime() + plan.termDays * 24 * 60 * 60 * 1000);
-            const userKey = (user.id || user.email).toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-            const reference = response?.reference || ('MH_' + Date.now());
-
-            const sub = {
-              userId: user.id || user.email,
-              userEmail: user.email,
-              planId: plan.id,
-              planName: plan.name,
-              amount: plan.amount * 100,
-              reference,
-              status: 'active',
-              entitlement: true,
-              startDate: now.toISOString(),
-              expiryDate: expiry.toISOString(),
-              daysLeft: plan.termDays,
-              updatedAt: now.toISOString()
-            };
-
-            await fetch(`https://storage.breacher.name.ng/U6op8Nr462Z46tBgxa2COUnja5z1/madhouse-db/userData/subscription_${userKey}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(sub)
-            });
-
-            await refreshSubscription();
-            setPaymentSuccessMessage(`🎉 Success! Your ${plan.name} is now active.`);
-          } catch (err: any) {
-            setPaymentError(err.message || 'Subscription activation failed.');
-          }
-        }
-      );
-    } else {
-      setPaymentError('Paystack SDK not loaded.');
+  const handleSubscribe = () => {
+    if (typeof (window as any).payWithPaystack === 'function') {
+      (window as any).payWithPaystack();
     }
   };
 
