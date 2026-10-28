@@ -26,40 +26,30 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<MadHouseUser | null>(() => {
-    try {
-      const saved = localStorage.getItem('madhouse_user');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return null;
-  });
-  const [subscription, setSubscription] = useState<SubscriptionRecord | null>(() => {
-    try {
-      const saved = localStorage.getItem('madhouse_active_sub');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return null;
-  });
+  const [user, setUser] = useState<MadHouseUser | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshSubscription = useCallback(async () => {
-    if (!user) {
+  const refreshSubscription = useCallback(async (targetUser?: MadHouseUser | null) => {
+    const active = targetUser !== undefined ? targetUser : user;
+    if (!active) {
       setSubscription(null);
       return null;
     }
     try {
-      const sub = await fetchUserSubscription(user.id || user.email);
+      const sub = await fetchUserSubscription(active.id || active.email);
       setSubscription(sub);
       return sub;
     } catch (err) {
       console.warn('Subscription fetch error:', err);
+      setSubscription(null);
       return null;
     }
   }, [user]);
 
   useEffect(() => {
     if (user) {
-      refreshSubscription();
+      refreshSubscription(user);
     } else {
       setSubscription(null);
     }
@@ -114,8 +104,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       await logoutMadHouse();
-      setUser(null);
     } finally {
+      setUser(null);
+      setSubscription(null);
+      try {
+        localStorage.removeItem('madhouse_user');
+        localStorage.removeItem('madhouse_active_sub');
+        localStorage.removeItem('popcorn_user_account');
+      } catch {}
       setIsLoading(false);
     }
   }, []);
@@ -125,7 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         subscription,
-        isVip: Boolean(subscription && subscription.status === 'active' && subscription.entitlement),
+        isVip: Boolean(user && subscription && subscription.status === 'active' && subscription.entitlement),
         isLoading,
         login: handleLogin,
         register: handleRegister,

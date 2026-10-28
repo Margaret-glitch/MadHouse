@@ -1210,8 +1210,11 @@ export const VideoPlayerModal: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {streamDetails.downloads.map((dl, idx) => {
                   const isActive = activeDirectUrl === dl.url;
-                  // First episode (idx === 0) allows first 10 minutes free preview. Subsequent episodes (idx > 0) are strictly locked.
-                  const isEpisodeLocked = !hasActiveSub && idx > 0;
+                  const epMatch = dl.label.match(/Episode\s*(\d+)/i) || dl.label.match(/E(\d+)/i);
+                  const epNum = epMatch ? parseInt(epMatch[1], 10) : idx + 1;
+                  // First episode (Episode 1 / idx === 0) allows first 10 minutes free preview.
+                  // All subsequent episodes (Episode 2, 3...) are strictly disabled with padlock.
+                  const isEpisodeLocked = !hasActiveSub && (epNum > 1 || idx > 0);
 
                   return (
                     <div
@@ -1223,36 +1226,36 @@ export const VideoPlayerModal: React.FC = () => {
                         }
                         playDirectUrl(dl.url, dl.label, idx);
                       }}
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-all group cursor-pointer ${
-                        isActive
-                          ? 'bg-butterYellow/15 border-butterYellow/50 shadow-[0_0_15px_rgba(229,192,88,0.1)]'
-                          : isEpisodeLocked
-                          ? 'bg-white/[0.02] border-white/5 opacity-70 hover:opacity-100 hover:border-[#E5C058]/30'
-                          : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-all select-none ${
+                        isEpisodeLocked
+                          ? 'bg-white/[0.02] border-white/10 opacity-75 hover:opacity-100 hover:border-[#E5C058]/40 cursor-pointer'
+                          : isActive
+                          ? 'bg-butterYellow/15 border-butterYellow/50 shadow-[0_0_15px_rgba(229,192,88,0.1)] cursor-pointer'
+                          : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 cursor-pointer'
                       }`}
                     >
                       <div className="flex items-center space-x-3 min-w-0 pr-2">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
                           isEpisodeLocked
-                            ? 'bg-white/5 text-gray-400 group-hover:text-[#E5C058]'
+                            ? 'bg-[#E5C058]/10 text-[#E5C058] border border-[#E5C058]/30'
                             : isActive 
                             ? 'bg-butterYellow text-black' 
                             : 'bg-butterYellow/10 text-butterYellow group-hover:bg-butterYellow group-hover:text-black'
                         }`}>
                           {isEpisodeLocked ? (
-                            <Lock size={15} weight="fill" />
+                            <Lock size={16} weight="fill" />
                           ) : (
                             <Play size={16} weight="fill" className="ml-0.5" />
                           )}
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                             <span className={`text-xs font-semibold truncate transition-colors ${
                               isEpisodeLocked
-                                ? 'text-gray-300 group-hover:text-[#E5C058]'
+                                ? 'text-gray-300'
                                 : isActive 
-                                ? 'text-butterYellow' 
-                                : 'text-white group-hover:text-butterYellow'
+                                ? 'text-butterYellow font-bold' 
+                                : 'text-white'
                             }`}>
                               {dl.label}
                             </span>
@@ -1261,15 +1264,19 @@ export const VideoPlayerModal: React.FC = () => {
                                 Playing
                               </span>
                             )}
-                            {isEpisodeLocked && (
-                              <span className="bg-[#E5C058]/15 text-[#E5C058] border border-[#E5C058]/30 text-[8px] font-extrabold px-1.5 py-0.5 rounded-sm uppercase tracking-wider flex items-center space-x-0.5">
+                            {isEpisodeLocked ? (
+                              <span className="bg-[#E5C058]/20 text-[#E5C058] border border-[#E5C058]/40 text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider flex items-center space-x-0.5">
                                 <Lock size={9} weight="fill" />
-                                <span>VIP</span>
+                                <span>LOCKED</span>
                               </span>
-                            )}
+                            ) : (!hasActiveSub && (epNum === 1 || idx === 0)) ? (
+                              <span className="bg-butterYellow/10 text-butterYellow border border-butterYellow/30 text-[8px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
+                                10m Preview
+                              </span>
+                            ) : null}
                           </div>
                           <span className="text-[10px] text-gray-400 mt-0.5">
-                            {dl.size_human} • {dl.quality || 'Direct'} {isEpisodeLocked ? '• Subscription required' : ''}
+                            {dl.size_human} • {dl.quality || 'Direct'} {isEpisodeLocked ? '• VIP Subscription required' : ''}
                           </span>
                         </div>
                       </div>
@@ -1280,10 +1287,11 @@ export const VideoPlayerModal: React.FC = () => {
                             e.stopPropagation();
                             handleOpenSubscriptionFlow();
                           }}
-                          className="w-8 h-8 rounded-full bg-white/5 hover:bg-[#E5C058] hover:text-black text-gray-400 flex items-center justify-center transition-all flex-shrink-0 cursor-pointer"
-                          title="Locked - Subscription Required"
+                          className="px-2 py-1 rounded-lg bg-[#E5C058]/15 border border-[#E5C058]/35 hover:bg-[#E5C058] text-[#E5C058] hover:text-black flex items-center space-x-1 transition-all text-[10px] font-extrabold cursor-pointer flex-shrink-0"
+                          title="Locked - Click to unlock with VIP"
                         >
-                          <Lock size={15} weight="fill" />
+                          <Lock size={12} weight="fill" />
+                          <span>Unlock</span>
                         </button>
                       ) : (
                         <a

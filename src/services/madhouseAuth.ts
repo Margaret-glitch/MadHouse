@@ -136,15 +136,18 @@ export async function checkAuthSession(): Promise<MadHouseUser | null> {
     }
 
     // No active session or session expired
+    try {
+      localStorage.removeItem('madhouse_user');
+      localStorage.removeItem('popcorn_user_account');
+      localStorage.removeItem('madhouse_active_sub');
+    } catch {}
     return null;
   } catch (err) {
     console.error('Auth check failed:', err);
-    // Offline local storage fallback
     try {
-      const saved = localStorage.getItem('madhouse_user');
-      if (saved) {
-        return JSON.parse(saved);
-      }
+      localStorage.removeItem('madhouse_user');
+      localStorage.removeItem('popcorn_user_account');
+      localStorage.removeItem('madhouse_active_sub');
     } catch {}
     return null;
   }

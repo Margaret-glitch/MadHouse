@@ -487,7 +487,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const playDirectUrl = useCallback((url: string, title = 'External Stream', episodeIndex?: number) => {
     // Assert inability to watch episodes past episode 1 without active subscription
-    if (!hasActiveSubscription && typeof episodeIndex === 'number' && episodeIndex > 0) {
+    const epMatch = title.match(/Episode\s*(\d+)/i) || title.match(/E(\d+)/i);
+    const epNum = epMatch ? parseInt(epMatch[1], 10) : (typeof episodeIndex === 'number' ? episodeIndex + 1 : 1);
+    const isLocked = !hasActiveSubscription && (epNum > 1 || (typeof episodeIndex === 'number' && episodeIndex > 0));
+
+    if (isLocked) {
       console.warn('Playback blocked: Episode is locked for non-VIP users.');
       return false;
     }
