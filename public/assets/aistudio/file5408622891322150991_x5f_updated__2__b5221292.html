@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movies App</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons CDN -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        butterYellow: '#E5C058',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styles for Liquid Glass effect using exact SVG distortion specifications */
+        .glass-nav {
+            position: relative;
+            isolation: isolate;
+            background-color: rgba(255, 255, 255, 0.04);
+            background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 50%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 24px 96px rgba(31, 38, 135, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-nav::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background-color: rgba(255, 255, 255, 0.04);
+            background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 50%);
+            pointer-events: none;
+        }
+        .glass-nav::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            filter: url(#liquid-glass-distortion);
+            -webkit-filter: url(#liquid-glass-distortion);
+            isolation: isolate;
+            pointer-events: none;
+        }
+
+        .glass-nav-bottom {
+            position: relative;
+            isolation: isolate;
+            background-color: rgba(255, 255, 255, 0.04);
+            background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 50%);
+            border-top: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 24px 96px rgba(31, 38, 135, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-nav-bottom::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background-color: rgba(255, 255, 255, 0.04);
+            background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 50%);
+            pointer-events: none;
+        }
+        .glass-nav-bottom::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            filter: url(#liquid-glass-distortion);
+            -webkit-filter: url(#liquid-glass-distortion);
+            isolation: isolate;
+            pointer-events: none;
+        }
+
+        .glass-pill {
+            position: relative;
+            isolation: isolate;
+            box-shadow: 0 24px 96px rgba(31, 38, 135, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-pill::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background-color: rgba(255, 255, 255, 0.04);
+            background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 50%);
+            pointer-events: none;
+        }
+        .glass-pill::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            border-radius: 9999px;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            filter: url(#liquid-glass-distortion);
+            -webkit-filter: url(#liquid-glass-distortion);
+            isolation: isolate;
+            pointer-events: none;
+        }
+
+        .glass-pill-active {
+            position: relative;
+            isolation: isolate;
+            background-color: rgba(229, 192, 88, 0.85);
+            box-shadow: 0 24px 96px rgba(31, 38, 135, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+            color: #000;
+        }
+        .glass-pill-active::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 50%);
+            pointer-events: none;
+        }
+        .glass-pill-active::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            border-radius: 9999px;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            filter: url(#liquid-glass-distortion);
+            -webkit-filter: url(#liquid-glass-distortion);
+            isolation: isolate;
+            pointer-events: none;
+        }
+
+        .glass-circle-btn {
+            position: relative;
+            isolation: isolate;
+            box-shadow: 0 24px 96px rgba(31, 38, 135, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-circle-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background-color: rgba(255, 255, 255, 0.04);
+            background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 50%);
+            pointer-events: none;
+        }
+        .glass-circle-btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            border-radius: 9999px;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            filter: url(#liquid-glass-distortion);
+            -webkit-filter: url(#liquid-glass-distortion);
+            isolation: isolate;
+            pointer-events: none;
+        }
+
+        /* Custom scroll animation transitions */
+        .header-brand {
+            transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 140px;
+            opacity: 1;
+            transform: scale(1);
+            transform-origin: left center;
+        }
+
+        .header-brand.shrunk {
+            max-width: 0px;
+            opacity: 0;
+            transform: scale(0.8);
+            margin-right: 0 !important;
+            overflow: hidden;
+        }
+
+        .categories-container {
+            transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .settings-btn {
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 40px;
+            opacity: 1;
+        }
+
+        .settings-btn.hidden-scroll {
+            max-width: 0px;
+            opacity: 0;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        /* Mini Player Container Styling */
+        #videoModal.mini-player-active {
+            position: fixed;
+            bottom: 70px;
+            right: 12px;
+            width: 260px;
+            height: 146px;
+            top: auto !important;
+            left: auto !important;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 60;
+            transition: transform 0.15s ease-out;
+            touch-action: none;
+        }
+
+        #videoModal.mini-player-active #modalScrollableContent,
+        #videoModal.mini-player-active #topVideoControls {
+            display: none !important;
+        }
+
+        #videoModal.mini-player-active #playerContainer {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Custom progress bar range slider styling */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #E5C058;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-white text-black min-h-screen flex flex-col justify-between select-none font-sans overflow-x-hidden">
+
+    <!-- SVG Distortion Filter Definition (Place anywhere in DOM body) -->
+    <svg width="0" height="0" style="position:absolute">
+      <defs>
+        <filter id="liquid-glass-distortion" x="0%" y="0%" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.012 0.012" numOctaves="2" seed="92" result="noise" />
+          <feGaussianBlur in="noise" stdDeviation="2" result="blurred" />
+          <feDisplacementMap in="SourceGraphic" in2="blurred" scale="85" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
+
+    <!-- Sticky Glassmorphic Header -->
+    <header id="mainHeader" class="sticky top-0 z-40 w-full flex justify-between items-center px-4 py-3 glass-nav transition-all duration-300">
+        <!-- Brand Logo/Title with Yellow Popcorn Icon & Text -->
+        <div id="headerBrand" class="header-brand flex items-center space-x-2 cursor-pointer whitespace-nowrap" onclick="scrollToTop()">
+            <i class="ph-fill ph-popcorn text-2xl text-butterYellow"></i>
+            <span class="text-xl font-bold tracking-tight text-butterYellow">Popcorn</span>
+        </div>
+
+        <!-- Scroll Injected Category Carousel Header Slot -->
+        <div id="inlineCategoryWrapper" class="flex-1 overflow-hidden transition-all duration-300 max-w-0 opacity-0 pointer-events-none">
+            <!-- Dynamically populated carousel on scroll down -->
+        </div>
+
+        <div class="flex items-center space-x-3 text-black flex-shrink-0">
+            <!-- Download Icon -->
+            <button class="focus:outline-none active:opacity-60 transition-opacity p-1" aria-label="Downloads">
+                <i class="ph-bold ph-download-simple text-2xl"></i>
+            </button>
+            <!-- Settings Icon -->
+            <button id="settingsBtn" class="settings-btn focus:outline-none active:opacity-60 transition-opacity p-1" aria-label="Settings">
+                <i class="ph-bold ph-gear text-2xl"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Transparent Categories Pills Carousel Container -->
+    <div id="categoriesContainer" class="sticky top-[61px] z-30 w-full py-2.5 px-4 bg-transparent categories-container min-h-[44px]">
+        <div id="categoryCarousel" class="flex items-center space-x-2 overflow-x-auto no-scrollbar scroll-smooth">
+            <button onclick="selectCategory(this)" class="glass-pill-active px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all">All</button>
+            <button onclick="selectCategory(this)" class="glass-pill text-black px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 active:opacity-70 transition-all">Horror</button>
+            <button onclick="selectCategory(this)" class="glass-pill text-black px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 active:opacity-70 transition-all">Sci-Fi</button>
+            <button onclick="selectCategory(this)" class="glass-pill text-black px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 active:opacity-70 transition-all">Drama</button>
+            <button onclick="selectCategory(this)" class="glass-pill text-black px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 active:opacity-70 transition-all">Action</button>
+            <button onclick="selectCategory(this)" class="glass-pill text-black px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 active:opacity-70 transition-all">Comedy</button>
+            <button onclick="selectCategory(this)" class="glass-pill text-black px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 active:opacity-70 transition-all">Thriller</button>
+            <button onclick="selectCategory(this)" class="glass-pill text-black px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 active:opacity-70 transition-all">Romance</button>
+            <button onclick="selectCategory(this)" class="glass-pill text-black px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 active:opacity-70 transition-all">Animation</button>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow pb-20">
+
+        <!-- 90vh Hero Banner Section -->
+        <section class="relative w-full h-[90vh] bg-cover bg-center flex flex-col justify-center items-center p-6 -mt-[112px] text-center" style="background-image: url('https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1000&q=80');">
+            <!-- Gradient Overlay for Contrast -->
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/30"></div>
+
+            <!-- Banner Content Centered -->
+            <div class="relative z-10 flex flex-col items-center space-y-6 max-w-xs mx-auto">
+                <h1 class="text-4xl font-extrabold text-white tracking-wider uppercase">
+                    Wednesday
+                </h1>
+                <div class="flex items-center justify-center space-x-3">
+                    <button onclick="playHeroVideo()" class="bg-butterYellow text-black font-semibold text-sm px-5 py-3 rounded-full flex items-center space-x-2 active:opacity-80 transition-opacity shadow-lg">
+                        <i class="ph-fill ph-play text-lg"></i>
+                        <span>Continue watching...</span>
+                    </button>
+                    <!-- Glassmorphic Circle Plus Button -->
+                    <button class="w-11 h-11 rounded-full flex items-center justify-center text-white glass-circle-btn active:scale-95 transition-transform" aria-label="Add to watchlist">
+                        <i class="ph-bold ph-plus text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Video Feed Dynamic Container -->
+        <div id="videoFeed" class="flex flex-col space-y-6 mt-6">
+            <!-- Rendered dynamically from JSON -->
+        </div>
+    </main>
+
+    <!-- Minimalistic Full Screen / Mini Video Player Modal -->
+    <div id="videoModal" class="fixed inset-0 z-50 bg-black flex flex-col hidden transition-all duration-300">
+        <!-- Top Controls Overlay (Minimize / Close) -->
+        <div id="topVideoControls" class="flex justify-between items-center px-4 py-3 bg-gradient-to-b from-black/80 to-transparent text-white z-10">
+            <button onclick="minimizeVideoPlayer()" class="p-2 text-2xl active:opacity-60 focus:outline-none">
+                <i class="ph-bold ph-caret-down"></i>
+            </button>
+            <div class="flex space-x-4 text-xl">
+                <button onclick="closeVideoPlayer()" class="p-1 active:opacity-60"><i class="ph-bold ph-x"></i></button>
+            </div>
+        </div>
+
+        <!-- Player Stage Container -->
+        <div class="relative w-full aspect-video bg-black flex items-center justify-center group" id="playerContainer">
+            <video id="htmlVideoPlayer" class="w-full h-full object-contain" playsinline></video>
+            
+            <!-- Custom Overlay Player Controls -->
+            <div id="playerControls" class="absolute inset-0 bg-black/40 flex flex-col justify-between p-4 transition-opacity duration-200">
+                <div class="flex justify-end"></div>
+                
+                <!-- Center Play/Pause & Skip Buttons -->
+                <div class="flex items-center justify-center space-x-8 text-white">
+                    <button onclick="skipVideo(-10)" class="text-3xl active:scale-90 transition-transform"><i class="ph-fill ph-rewind-10"></i></button>
+                    <button id="modalPlayBtn" onclick="togglePlayPause()" class="w-14 h-14 bg-black/50 border border-white/20 rounded-full flex items-center justify-center text-3xl text-butterYellow active:scale-95 transition-transform">
+                        <i class="ph-fill ph-play" id="playIcon"></i>
+                    </button>
+                    <button onclick="skipVideo(10)" class="text-3xl active:scale-90 transition-transform"><i class="ph-fill ph-fast-forward-10"></i></button>
+                </div>
+
+                <!-- Bottom Progress Bar & Time Details -->
+                <div class="flex flex-col space-y-1">
+                    <input type="range" id="progressBar" value="0" min="0" max="100" class="w-full accent-butterYellow h-1 bg-white/30 rounded-lg appearance-none cursor-pointer">
+                    <div class="flex justify-between items-center text-xs text-white/80 font-mono mt-1">
+                        <span id="currentTime">0:00</span>
+                        <div class="flex items-center space-x-3">
+                            <span id="duration">0:00</span>
+                            <button onclick="toggleFullscreen()" class="text-lg text-white"><i class="ph-bold ph-corners-out"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Information & Interaction Details (Scrollable content below player) -->
+        <div id="modalScrollableContent" class="flex-1 overflow-y-auto p-4 text-white bg-black/95">
+            <h2 id="modalVideoTitle" class="text-base font-bold leading-snug"></h2>
+            <p id="modalVideoMeta" class="text-xs text-gray-400 mt-1"></p>
+
+            <!-- Channel Header & Subscribe Button -->
+            <div class="flex items-center justify-between mt-4 py-3 border-y border-white/10">
+                <div class="flex items-center space-x-3">
+                    <img id="modalChannelAvatar" src="" alt="Avatar" class="w-9 h-9 rounded-full object-cover">
+                    <div>
+                        <h4 id="modalChannelName" class="text-sm font-semibold"></h4>
+                        <span class="text-xs text-gray-400">1.5M subscribers</span>
+                    </div>
+                </div>
+                <button class="bg-white text-black text-xs font-semibold px-4 py-2 rounded-full active:opacity-80">Subscribe</button>
+            </div>
+
+            <!-- YouTube Minimalist Action Buttons -->
+            <div class="flex items-center space-x-3 overflow-x-auto py-4 no-scrollbar">
+                <div class="flex items-center bg-white/10 rounded-full text-xs font-medium px-4 py-2 space-x-2 flex-shrink-0">
+                    <button class="flex items-center space-x-1 active:opacity-60"><i class="ph-bold ph-thumbs-up text-base"></i> <span id="modalLikes">45K</span></button>
+                    <span class="text-white/20">|</span>
+                    <button class="active:opacity-60"><i class="ph-bold ph-thumbs-down text-base"></i></button>
+                </div>
+                <button class="flex items-center space-x-1 bg-white/10 rounded-full text-xs font-medium px-4 py-2 flex-shrink-0 active:opacity-60">
+                    <i class="ph-bold ph-share-network text-base"></i>
+                    <span>Share</span>
+                </button>
+                <button class="flex items-center space-x-1 bg-white/10 rounded-full text-xs font-medium px-4 py-2 flex-shrink-0 active:opacity-60">
+                    <i class="ph-bold ph-download-simple text-base"></i>
+                    <span>Download</span>
+                </button>
+                <button class="flex items-center space-x-1 bg-white/10 rounded-full text-xs font-medium px-4 py-2 flex-shrink-0 active:opacity-60">
+                    <i class="ph-bold ph-bookmark-simple text-base"></i>
+                    <span>Save</span>
+                </button>
+            </div>
+
+            <!-- Up Next / Recommended Header -->
+            <div class="mt-4">
+                <h3 class="text-sm font-semibold text-gray-300 mb-3">Up Next</h3>
+                <div id="upNextFeed" class="flex flex-col space-y-4">
+                    <!-- Dynamic recommendations will render here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Glassmorphic Bottom Navigation -->
+    <nav class="fixed bottom-0 left-0 right-0 glass-nav-bottom z-40 px-8 py-3.5">
+        <ul class="flex justify-between items-center w-full max-w-md mx-auto">
+            <!-- Home (Active) -->
+            <li>
+                <button class="flex flex-col items-center justify-center text-butterYellow focus:outline-none">
+                    <i class="ph-fill ph-house text-2xl"></i>
+                </button>
+            </li>
+            <!-- YouTube -->
+            <li>
+                <button class="flex flex-col items-center justify-center text-black focus:outline-none active:text-butterYellow transition-colors">
+                    <i class="ph-bold ph-youtube-logo text-2xl"></i>
+                </button>
+            </li>
+            <!-- History -->
+            <li>
+                <button class="flex flex-col items-center justify-center text-black focus:outline-none active:text-butterYellow transition-colors">
+                    <i class="ph-bold ph-clock-counter-clockwise text-2xl"></i>
+                </button>
+            </li>
+            <!-- Profile -->
+            <li>
+                <button class="flex flex-col items-center justify-center text-black focus:outline-none active:text-butterYellow transition-colors">
+                    <i class="ph-bold ph-user text-2xl"></i>
+                </button>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- App Logic Script -->
+    <script>
+        /**
+         * Complete Invidious Client
+         * Instance: https://inv.nadeko.net
+         */
+        const BASE = "https://inv.nadeko.net/api/v1";
+
+        class Invidious {
+          constructor(baseUrl = BASE) {
+            this.base = baseUrl.replace(/\/$/, "");
+          }
+
+          async #get(path, params = {}) {
+            const url = new URL(`${this.base}${path}`);
+            Object.entries(params).forEach(([k, v]) => {
+              if (v !== undefined && v !== null) url.searchParams.set(k, v);
+            });
+
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`Invidious error ${res.status}: ${await res.text()}`);
+            return res.json();
+          }
+
+          async search(query, options = {}) {
+            const {
+              page = 1,
+              type = "video",
+              sort = "relevance",
+              date,
+              duration,
+              features,
+              region = "US"
+            } = options;
+            return this.#get("/search", { q: query, page, type, sort, date, duration, features, region });
+          }
+
+          async searchSuggestions(query) {
+            const data = await this.#get("/search/suggestions", { q: query });
+            return data.suggestions || [];
+          }
+
+          async popular() {
+            return this.#get("/popular");
+          }
+
+          async trending(type = "default", region = "US") {
+            return this.#get("/trending", { type, region });
+          }
+
+          async getVideo(videoId, region = "US") {
+            return this.#get(`/videos/${videoId}`, { region });
+          }
+
+          async getStreams(videoId) {
+            const video = await this.getVideo(videoId);
+
+            const progressive = (video.formatStreams || [])
+              .sort((a, b) => (parseInt(b.qualityLabel) || 0) - (parseInt(a.qualityLabel) || 0));
+
+            const adaptiveVideo = (video.adaptiveFormats || [])
+              .filter(f => f.type?.startsWith("video/"))
+              .sort((a, b) => (parseInt(b.qualityLabel) || 0) - (parseInt(a.qualityLabel) || 0));
+
+            const adaptiveAudio = (video.adaptiveFormats || [])
+              .filter(f => f.type?.startsWith("audio/"))
+              .sort((a, b) => (parseInt(b.bitrate) || 0) - (parseInt(a.bitrate) || 0));
+
+            return {
+              title: video.title,
+              author: video.author,
+              authorId: video.authorId,
+              authorThumbnails: video.authorThumbnails,
+              lengthSeconds: video.lengthSeconds,
+              viewCount: video.viewCount,
+              description: video.description,
+              thumbnails: video.videoThumbnails,
+              publishedText: video.publishedText,
+              progressive,
+              bestProgressive: progressive[0] || null,
+              adaptiveVideo,
+              adaptiveAudio,
+              captions: video.captions || [],
+              recommended: video.recommendedVideos || []
+            };
+          }
+
+          async getComments(videoId, options = {}) {
+            const { sort_by = "top", continuation, source = "youtube" } = options;
+            return this.#get(`/comments/${videoId}`, { sort_by, continuation, source });
+          }
+
+          async getCaptions(videoId) {
+            return this.#get(`/captions/${videoId}`);
+          }
+
+          async getCaptionTrack(videoId, lang = "en") {
+            const url = `${this.base}/captions/${videoId}?lang=${lang}`;
+            const res = await fetch(url);
+            return res.text();
+          }
+
+          async getChannel(channelId) {
+            return this.#get(`/channels/${channelId}`);
+          }
+
+          async getChannelVideos(channelId, options = {}) {
+            const { continuation, sort_by = "newest" } = options;
+            return this.#get(`/channels/${channelId}/videos`, { continuation, sort_by });
+          }
+        }
+
+        const yt = new Invidious();
+
+        // ---------- Helpers ----------
+        function formatViews(n) {
+          if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M views';
+          if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'K views';
+          return (n || 0) + ' views';
+        }
+
+        function formatDuration(seconds) {
+          if (!seconds && seconds !== 0) return '';
+          const h = Math.floor(seconds / 3600);
+          const m = Math.floor((seconds % 3600) / 60);
+          const s = Math.floor(seconds % 60);
+          if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+          return `${m}:${String(s).padStart(2,'0')}`;
+        }
+
+        function pickThumbnail(thumbnails = [], preferred = 'medium') {
+          if (!thumbnails.length) return '';
+          const order = ['maxres', 'high', 'medium', 'default', 'start', 'middle', 'end'];
+          for (const q of order) {
+            const t = thumbnails.find(t => (t.quality || '').includes(q) || t.quality === q);
+            if (t) return t.url;
+          }
+          return thumbnails[0].url;
+        }
+
+        function normalizeItem(item) {
+          // Works for both search results and popular/trending
+          const videoId = item.videoId || item.id;
+          return {
+            id: videoId,
+            title: item.title || 'Untitled',
+            channelName: item.author || item.authorName || 'Unknown',
+            channelId: item.authorId || '',
+            views: formatViews(item.viewCount || item.viewCountText || 0),
+            viewCount: item.viewCount || 0,
+            timestamp: item.publishedText || item.published || '',
+            duration: formatDuration(item.lengthSeconds),
+            lengthSeconds: item.lengthSeconds || 0,
+            likes: '',
+            thumbnail: pickThumbnail(item.videoThumbnails || item.thumbnails || []),
+            avatar: (item.authorThumbnails && item.authorThumbnails[0]?.url) || '',
+            videoId
+          };
+        }
+
+        // ---------- State ----------
+        let videosData = [];
+        let currentCategory = 'All';
+        let isLoading = false;
+
+        // Global DOM References
+        const videoFeed = document.getElementById('videoFeed');
+        const videoModal = document.getElementById('videoModal');
+        const htmlVideoPlayer = document.getElementById('htmlVideoPlayer');
+        const modalPlayBtn = document.getElementById('modalPlayBtn');
+        const playIcon = document.getElementById('playIcon');
+        const progressBar = document.getElementById('progressBar');
+        const currentTimeEl = document.getElementById('currentTime');
+        const durationEl = document.getElementById('duration');
+        const playerControls = document.getElementById('playerControls');
+        let controlsTimeout;
+        let isMiniPlayer = false;
+
+        // ---------- Data loading ----------
+        async function loadFeed(category = 'All') {
+          if (isLoading) return;
+          isLoading = true;
+          videoFeed.innerHTML = `<div class="flex justify-center py-16"><div class="w-8 h-8 border-2 border-butterYellow border-t-transparent rounded-full animate-spin"></div></div>`;
+
+          try {
+            let items = [];
+            if (category === 'All') {
+              const [popular, trending] = await Promise.all([
+                yt.popular().catch(() => []),
+                yt.trending('default').catch(() => [])
+              ]);
+              const map = new Map();
+              [...popular, ...trending].forEach(v => {
+                const n = normalizeItem(v);
+                if (n.id && !map.has(n.id)) map.set(n.id, n);
+              });
+              items = Array.from(map.values());
+            } else {
+              // Use search for category pills
+              const results = await yt.search(category + ' movie', { type: 'video', sort: 'relevance' });
+              items = (results || []).map(normalizeItem).filter(v => v.id);
+            }
+
+            videosData = items;
+            renderFeed();
+
+            // Update hero with first item if available
+            if (items[0]) {
+              updateHero(items[0]);
+            }
+          } catch (err) {
+            console.error(err);
+            videoFeed.innerHTML = `<div class="px-4 py-12 text-center text-gray-500 text-sm">Failed to load videos.<br><button onclick="loadFeed(currentCategory)" class="mt-3 text-butterYellow font-semibold">Retry</button></div>`;
+          } finally {
+            isLoading = false;
+          }
+        }
+
+        function updateHero(item) {
+          const hero = document.querySelector('section.relative');
+          if (!hero || !item) return;
+          hero.style.backgroundImage = `url('${item.thumbnail}')`;
+          const titleEl = hero.querySelector('h1');
+          if (titleEl) titleEl.textContent = item.title;
+          // store current hero id
+          hero.dataset.videoId = item.id;
+        }
+
+        // Render main feed
+        function renderFeed() {
+          if (!videosData.length) {
+            videoFeed.innerHTML = `<div class="px-4 py-12 text-center text-gray-500 text-sm">No videos found</div>`;
+            return;
+          }
+
+          videoFeed.innerHTML = videosData.map(video => `
+            <article onclick="openVideoPlayer('${video.id}')" class="flex flex-col cursor-pointer active:opacity-95 transition-opacity">
+              <div class="relative w-full aspect-video bg-gray-200">
+                <img src="${video.thumbnail}" alt="Thumbnail" class="w-full h-full object-cover" loading="lazy"
+                     onerror="this.src='https://via.placeholder.com/640x360?text=No+Thumbnail'">
+                <span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded-sm font-medium">${video.duration}</span>
+              </div>
+              <div class="flex items-start px-4 mt-3 space-x-3">
+                <img src="${video.avatar || 'https://via.placeholder.com/40'}" alt="${video.channelName}" class="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                     onerror="this.src='https://via.placeholder.com/40'">
+                <div class="flex-1 min-w-0">
+                  <h3 class="text-sm font-semibold text-black leading-snug line-clamp-2">
+                    ${video.title}
+                  </h3>
+                  <p class="text-xs text-gray-500 mt-1">
+                    ${video.channelName} &bull; ${video.views} ${video.timestamp ? '&bull; ' + video.timestamp : ''}
+                  </p>
+                </div>
+                <button onclick="event.stopPropagation()" class="text-gray-600 focus:outline-none p-1" aria-label="More options">
+                  <i class="ph-bold ph-dots-three-vertical text-lg"></i>
+                </button>
+              </div>
+            </article>
+          `).join('');
+        }
+
+        // Open Video Modal player
+        async function openVideoPlayer(videoId) {
+          if (isMiniPlayer) {
+            restoreFullscreenVideo();
+          }
+
+          // Show modal immediately with loading state
+          videoModal.classList.remove('hidden');
+          document.body.style.overflow = 'hidden';
+          document.getElementById('modalVideoTitle').textContent = 'Loading...';
+          document.getElementById('modalVideoMeta').textContent = '';
+          document.getElementById('modalChannelName').textContent = '';
+          document.getElementById('modalChannelAvatar').src = '';
+          document.getElementById('modalLikes').textContent = '';
+          document.getElementById('upNextFeed').innerHTML = '';
+          htmlVideoPlayer.src = '';
+          playIcon.className = "ph-fill ph-spinner-gap animate-spin";
+
+          try {
+            const streams = await yt.getStreams(videoId);
+
+            document.getElementById('modalVideoTitle').textContent = streams.title;
+            document.getElementById('modalVideoMeta').textContent = `${formatViews(streams.viewCount)} • ${streams.publishedText || ''}`;
+            document.getElementById('modalChannelName').textContent = streams.author || '';
+            const avatar = (streams.authorThumbnails && streams.authorThumbnails[0]?.url) || '';
+            document.getElementById('modalChannelAvatar').src = avatar;
+            document.getElementById('modalLikes').textContent = '';
+
+            // Up Next
+            const upNextFeed = document.getElementById('upNextFeed');
+            upNextFeed.innerHTML = (streams.recommended || []).slice(0, 8).map(v => {
+              const n = normalizeItem(v);
+              return `
+                <div onclick="openVideoPlayer('${n.id}')" class="flex space-x-3 cursor-pointer active:opacity-80">
+                  <div class="relative w-36 aspect-video bg-gray-800 flex-shrink-0">
+                    <img src="${n.thumbnail}" class="w-full h-full object-cover" loading="lazy">
+                    <span class="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 py-0.5 rounded-sm">${n.duration}</span>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h4 class="text-xs font-semibold text-white leading-snug line-clamp-2">${n.title}</h4>
+                    <p class="text-[11px] text-gray-400 mt-1">${n.channelName}</p>
+                    <p class="text-[10px] text-gray-500">${n.views}</p>
+                  </div>
+                </div>
+              `;
+            }).join('');
+
+            // Play best progressive stream (single file, works in <video>)
+            const playUrl = streams.bestProgressive?.url;
+            if (!playUrl) {
+              throw new Error('No playable stream found');
+            }
+
+            htmlVideoPlayer.src = playUrl;
+            htmlVideoPlayer.play().catch(() => {});
+            updatePlayIcon(true);
+            showControlsTemporarily();
+
+            // Optional: attach first English caption if available
+            // (native <track> needs a proxy or CORS-friendly VTT; skipped for reliability)
+
+          } catch (err) {
+            console.error(err);
+            document.getElementById('modalVideoTitle').textContent = 'Failed to load video';
+            document.getElementById('modalVideoMeta').textContent = err.message;
+            playIcon.className = "ph-fill ph-play";
+          }
+        }
+
+        function minimizeVideoPlayer() {
+          isMiniPlayer = true;
+          videoModal.classList.add('mini-player-active');
+          document.body.style.overflow = '';
+          videoModal.style.transform = 'translate(0px, 0px) scale(1)';
+          miniScale = 1;
+        }
+
+        function restoreFullscreenVideo() {
+          isMiniPlayer = false;
+          videoModal.classList.remove('mini-player-active');
+          videoModal.style.transform = '';
+          document.body.style.overflow = 'hidden';
+        }
+
+        function playHeroVideo() {
+          const hero = document.querySelector('section.relative');
+          const id = hero?.dataset?.videoId || (videosData[0] && videosData[0].id);
+          if (id) openVideoPlayer(id);
+        }
+
+        function closeVideoPlayer() {
+          htmlVideoPlayer.pause();
+          htmlVideoPlayer.src = '';
+          videoModal.classList.add('hidden');
+          restoreFullscreenVideo();
+          document.body.style.overflow = '';
+        }
+
+        function togglePlayPause() {
+          if (htmlVideoPlayer.paused) {
+            htmlVideoPlayer.play();
+            updatePlayIcon(true);
+          } else {
+            htmlVideoPlayer.pause();
+            updatePlayIcon(false);
+          }
+          showControlsTemporarily();
+        }
+
+        function updatePlayIcon(isPlaying) {
+          playIcon.className = isPlaying ? "ph-fill ph-pause" : "ph-fill ph-play";
+        }
+
+        function skipVideo(seconds) {
+          htmlVideoPlayer.currentTime += seconds;
+          showControlsTemporarily();
+        }
+
+        function formatTime(seconds) {
+          const min = Math.floor(seconds / 60);
+          const sec = Math.floor(seconds % 60);
+          return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+        }
+
+        function showControlsTemporarily() {
+          playerControls.classList.remove('opacity-0');
+          clearTimeout(controlsTimeout);
+          controlsTimeout = setTimeout(() => {
+            if (!htmlVideoPlayer.paused) {
+              playerControls.classList.add('opacity-0');
+            }
+          }, 3000);
+        }
+
+        document.getElementById('playerContainer').addEventListener('click', (e) => {
+          if (isMiniPlayer) {
+            restoreFullscreenVideo();
+            return;
+          }
+          if (e.target.closest('button') || e.target.closest('input')) return;
+          if (playerControls.classList.contains('opacity-0')) {
+            showControlsTemporarily();
+          } else {
+            playerControls.classList.add('opacity-0');
+          }
+        });
+
+        // Touch Dragging & Pinch Zoom for Mini Player
+        let isDragging = false;
+        let startX, startY, currentX = 0, currentY = 0;
+        let initialPinchDistance = null;
+        let miniScale = 1;
+
+        videoModal.addEventListener('touchstart', (e) => {
+          if (!isMiniPlayer) return;
+          if (e.touches.length === 1) {
+            isDragging = true;
+            startX = e.touches[0].clientX - currentX;
+            startY = e.touches[0].clientY - currentY;
+          } else if (e.touches.length === 2) {
+            isDragging = false;
+            initialPinchDistance = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
+            );
+          }
+        });
+
+        videoModal.addEventListener('touchmove', (e) => {
+          if (!isMiniPlayer) return;
+          if (isDragging && e.touches.length === 1) {
+            currentX = e.touches[0].clientX - startX;
+            currentY = e.touches[0].clientY - startY;
+            videoModal.style.transform = `translate(${currentX}px, ${currentY}px) scale(${miniScale})`;
+          } else if (e.touches.length === 2 && initialPinchDistance) {
+            const dist = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
+            );
+            const factor = dist / initialPinchDistance;
+            miniScale = Math.min(Math.max(factor * miniScale, 0.8), 1.3);
+            videoModal.style.transform = `translate(${currentX}px, ${currentY}px) scale(${miniScale})`;
+          }
+        });
+
+        videoModal.addEventListener('touchend', (e) => {
+          if (!isMiniPlayer) return;
+          isDragging = false;
+          initialPinchDistance = null;
+
+          const rect = videoModal.getBoundingClientRect();
+          const padding = 12;
+          let targetX = currentX;
+          let targetY = currentY;
+
+          if (rect.left < window.innerWidth / 2) {
+            targetX = targetX - (rect.left - padding);
+          } else {
+            targetX = targetX + (window.innerWidth - rect.right - padding);
+          }
+
+          if (rect.top < padding) {
+            targetY = targetY + (padding - rect.top);
+          } else if (rect.bottom > window.innerHeight - 70) {
+            targetY = targetY - (rect.bottom - (window.innerHeight - 70));
+          }
+
+          currentX = targetX;
+          currentY = targetY;
+          videoModal.style.transform = `translate(${currentX}px, ${currentY}px) scale(${miniScale})`;
+        });
+
+        // HTML Video Event Listeners
+        htmlVideoPlayer.addEventListener('timeupdate', () => {
+          if (!isNaN(htmlVideoPlayer.duration)) {
+            const progress = (htmlVideoPlayer.currentTime / htmlVideoPlayer.duration) * 100;
+            progressBar.value = progress;
+            currentTimeEl.textContent = formatTime(htmlVideoPlayer.currentTime);
+            durationEl.textContent = formatTime(htmlVideoPlayer.duration);
+          }
+        });
+
+        progressBar.addEventListener('input', () => {
+          const seekTime = (progressBar.value / 100) * htmlVideoPlayer.duration;
+          htmlVideoPlayer.currentTime = seekTime;
+        });
+
+        function toggleFullscreen() {
+          if (!document.fullscreenElement) {
+            document.getElementById('playerContainer').requestFullscreen().catch(err => {});
+          } else {
+            document.exitFullscreen();
+          }
+        }
+
+        function scrollToTop() {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Category selection → real search
+        function selectCategory(el) {
+          document.querySelectorAll('.glass-pill-active, .glass-pill').forEach(btn => {
+            btn.className = 'glass-pill text-black px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 active:opacity-70 transition-all';
+          });
+          el.className = 'glass-pill-active px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all';
+          currentCategory = el.textContent.trim();
+          loadFeed(currentCategory);
+        }
+
+        // Hysteresis Threshold-Based Scroll Logic
+        const headerBrand = document.getElementById('headerBrand');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const categoriesContainer = document.getElementById('categoriesContainer');
+        const inlineCategoryWrapper = document.getElementById('inlineCategoryWrapper');
+        const categoryCarousel = document.getElementById('categoryCarousel');
+        let isShrunk = false;
+
+        window.addEventListener('scroll', () => {
+          const currentScrollY = window.scrollY;
+
+          if (currentScrollY > 120 && !isShrunk) {
+            isShrunk = true;
+            headerBrand.classList.add('shrunk');
+            settingsBtn.classList.add('hidden-scroll');
+            
+            inlineCategoryWrapper.appendChild(categoryCarousel);
+            inlineCategoryWrapper.classList.remove('max-w-0', 'opacity-0', 'pointer-events-none');
+            inlineCategoryWrapper.classList.add('max-w-full', 'opacity-100', 'mr-2');
+            categoriesContainer.classList.add('hidden');
+          } else if (currentScrollY < 40 && isShrunk) {
+            isShrunk = false;
+            headerBrand.classList.remove('shrunk');
+            settingsBtn.classList.remove('hidden-scroll');
+            
+            categoriesContainer.classList.remove('hidden');
+            categoriesContainer.appendChild(categoryCarousel);
+            inlineCategoryWrapper.classList.add('max-w-0', 'opacity-0', 'pointer-events-none');
+            inlineCategoryWrapper.classList.remove('max-w-full', 'opacity-100', 'mr-2');
+          }
+        }, { passive: true });
+
+        // Boot
+        loadFeed('All');
+    </script>
+</body>
+</html>

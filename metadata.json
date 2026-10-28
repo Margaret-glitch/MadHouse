@@ -1,0 +1,6 @@
+{
+  "name": "MadHouse",
+  "description": "Watch movies, series or the latest on YouTube, on the go!",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
