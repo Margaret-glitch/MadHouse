@@ -332,9 +332,9 @@ export async function fetchUserSubscription(
 }
 
 /**
- * Start Paystack Pop checkout flow
+ * Start Paystack Pop checkout flow (Synchronous execution within click thread)
  */
-export async function initiatePaystackSubscription({
+export function initiatePaystackSubscription({
   user,
   planId,
   onSuccess,
@@ -346,7 +346,7 @@ export async function initiatePaystackSubscription({
   onSuccess: (sub: SubscriptionRecord) => void;
   onClose?: () => void;
   onError?: (error: Error) => void;
-}): Promise<void> {
+}): void {
   const plan = SUBSCRIPTION_PLANS[planId];
   if (!plan) {
     onError?.(new Error(`Invalid plan: ${planId}`));
@@ -358,66 +358,71 @@ export async function initiatePaystackSubscription({
     return;
   }
 
-  try {
-    await loadPaystackScript();
+  const userEmail = user.email || 'customer@madhouse.app';
+  const reference = `MH_SUB_${Date.now()}_${Math.floor(Math.random() * 1000000000 + 1)}`;
 
-    if (!window.PaystackPop) {
-      throw new Error('Paystack SDK failed to load. Please check your internet connection.');
+  // 1. Record pending transaction in Breacher DB asynchronously in background
+  logPendingTransaction(user, plan, reference).catch((err) =>
+    console.warn('Background pending transaction log failed:', err)
+  );
+
+  const paystackOptions = {
+    key: PAYSTACK_PUBLIC_KEY,
+    email: userEmail,
+    amount: plan.amountKobo,
+    currency: 'NGN',
+    ref: reference,
+    metadata: {
+      userId: user.id || user.email,
+      userEmail: userEmail,
+      planId: plan.id,
+      planName: plan.name,
+      termDays: plan.termDays,
+      custom_fields: [
+        { display_name: 'App', variable_name: 'app_name', value: 'MadHouse' },
+        { display_name: 'Plan', variable_name: 'plan_name', value: plan.name },
+        { display_name: 'Term', variable_name: 'term_duration', value: `${plan.termDays} Days` }
+      ]
+    },
+    callback: function (response: any) {
+      grantSubscriptionEntitlement(user, plan, response?.reference || reference, response)
+        .then((sub) => onSuccess(sub))
+        .catch((err) => onError?.(err instanceof Error ? err : new Error(String(err))));
+    },
+    onClose: function () {
+      onClose?.();
     }
+  };
 
-    // Generate unique reference
-    const reference = `MH_SUB_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-
-    // 1. Record pending transaction in Breacher DB before popup opens
-    await logPendingTransaction(user, plan, reference);
-
-    // 2. Open Paystack Pop modal
-    const handler = window.PaystackPop.setup({
-      key: PAYSTACK_PUBLIC_KEY,
-      email: user.email,
-      amount: plan.amountKobo,
-      currency: 'NGN',
-      ref: reference,
-      metadata: {
-        userId: user.id || user.email,
-        userEmail: user.email,
-        planId: plan.id,
-        planName: plan.name,
-        termDays: plan.termDays,
-        custom_fields: [
-          {
-            display_name: 'App',
-            variable_name: 'app_name',
-            value: 'MadHouse'
-          },
-          {
-            display_name: 'Plan',
-            variable_name: 'plan_name',
-            value: plan.name
-          },
-          {
-            display_name: 'Term',
-            variable_name: 'term_duration',
-            value: `${plan.termDays} Days`
-          }
-        ]
-      },
-      callback: async (response) => {
-        try {
-          // Grant entitlement immediately upon successful payment
-          const sub = await grantSubscriptionEntitlement(user, plan, response.reference || reference, response);
-          onSuccess(sub);
-        } catch (err: any) {
-          onError?.(err instanceof Error ? err : new Error(String(err)));
-        }
-      },
-      onClose: () => {
-        onClose?.();
+  // 2. Launch Paystack Pop iframe modal synchronously on the current click stack frame
+  try {
+    const paystackWindow = window as any;
+    if (paystackWindow.PaystackPop && typeof paystackWindow.PaystackPop.setup === 'function') {
+      const handler = paystackWindow.PaystackPop.setup(paystackOptions);
+      handler.openIframe();
+    } else if (typeof paystackWindow.PaystackPop === 'function') {
+      const handler = new paystackWindow.PaystackPop();
+      if (typeof handler.newTransaction === 'function') {
+        handler.newTransaction(paystackOptions);
+      } else if (typeof handler.setup === 'function') {
+        handler.setup(paystackOptions).openIframe();
       }
-    });
-
-    handler.openIframe();
+    } else {
+      loadPaystackScript().then((loaded) => {
+        if (loaded && (window as any).PaystackPop) {
+          const ps = (window as any).PaystackPop;
+          if (typeof ps.setup === 'function') {
+            ps.setup(paystackOptions).openIframe();
+          } else if (typeof ps === 'function') {
+            new ps().newTransaction(paystackOptions);
+          }
+        } else {
+          onError?.(new Error('Paystack Payment Gateway SDK could not be loaded.'));
+        }
+      });
+    }
   } catch (err: any) {
+    console.error('Paystack popup launch error:', err);
     onError?.(err instanceof Error ? err : new Error(String(err)));
   }
 }

@@ -33,7 +33,7 @@ export const SubscriptionCheckoutModal: React.FC<SubscriptionCheckoutModalProps>
 
   if (!isOpen) return null;
 
-  const handleCheckout = async (planId: 'weekly' | 'vip_monthly') => {
+  const handleCheckout = (planId: 'weekly' | 'vip_monthly') => {
     if (!user) {
       setError('Please sign in or create an account first.');
       return;
@@ -43,7 +43,7 @@ export const SubscriptionCheckoutModal: React.FC<SubscriptionCheckoutModalProps>
     setIsProcessing(true);
 
     try {
-      await initiatePaystackSubscription({
+      initiatePaystackSubscription({
         user,
         planId,
         onSuccess: async (sub) => {
