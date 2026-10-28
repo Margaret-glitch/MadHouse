@@ -5,12 +5,11 @@ import {
   CheckCircle,
   WarningCircle,
   Sparkle,
-  LockOpen,
-  SpinnerGap
+  LockOpen
 } from '@phosphor-icons/react';
 import { useAuth } from '../context/AuthContext';
 import {
-  initiatePaystackSubscription,
+  grantSubscriptionEntitlement,
   SubscriptionRecord,
   SUBSCRIPTION_PLANS
 } from '../services/paystack';
@@ -28,7 +27,6 @@ export const SubscriptionCheckoutModal: React.FC<SubscriptionCheckoutModalProps>
 }) => {
   const { user, isVip, subscription, refreshSubscription } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<'weekly' | 'vip_monthly'>('vip_monthly');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -40,29 +38,36 @@ export const SubscriptionCheckoutModal: React.FC<SubscriptionCheckoutModalProps>
     }
 
     setError(null);
-    setIsProcessing(true);
+    const plan = SUBSCRIPTION_PLANS[planId];
+    if (!plan) {
+      setError('Invalid plan selected.');
+      return;
+    }
 
-    try {
-      initiatePaystackSubscription({
-        user,
-        planId,
-        onSuccess: async (sub) => {
-          setIsProcessing(false);
-          await refreshSubscription();
-          onSuccess?.(sub);
-          onClose();
+    const userEmail = user.email || 'customer@email.com';
+    const amountInKobo = plan.amount * 100;
+
+    const payWindow = window as any;
+    if (typeof payWindow.payWithPaystack === 'function') {
+      payWindow.payWithPaystack(
+        userEmail,
+        amountInKobo,
+        async (response: any) => {
+          try {
+            const sub = await grantSubscriptionEntitlement(user, plan, response?.reference || ('MH_' + Date.now()), response);
+            await refreshSubscription();
+            onSuccess?.(sub);
+            onClose();
+          } catch (err: any) {
+            setError(err.message || 'Entitlement grant failed.');
+          }
         },
-        onClose: () => {
-          setIsProcessing(false);
-        },
-        onError: (err) => {
-          setIsProcessing(false);
-          setError(err.message || 'Payment initiation failed. Please try again.');
+        () => {
+          // Closed without completing
         }
-      });
-    } catch (err: any) {
-      setIsProcessing(false);
-      setError(err.message || 'Could not launch payment gateway.');
+      );
+    } else {
+      setError('Paystack SDK not loaded.');
     }
   };
 
@@ -155,26 +160,16 @@ export const SubscriptionCheckoutModal: React.FC<SubscriptionCheckoutModalProps>
 
         {/* Action Button */}
         <button
-          disabled={isProcessing}
           onClick={() => handleCheckout(selectedPlan)}
-          className="w-full py-3.5 rounded-xl bg-[#E5C058] hover:bg-[#ebd06a] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center space-x-2 shadow-[0_4px_20px_rgba(229,192,88,0.4)] active:scale-98 transition-all cursor-pointer disabled:opacity-50"
+          className="w-full py-3.5 rounded-xl bg-[#E5C058] hover:bg-[#ebd06a] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center space-x-2 shadow-[0_4px_20px_rgba(229,192,88,0.4)] active:scale-98 transition-all cursor-pointer"
         >
-          {isProcessing ? (
-            <>
-              <SpinnerGap size={18} weight="bold" className="animate-spin text-black" />
-              <span>Connecting to Paystack...</span>
-            </>
-          ) : (
-            <>
-              <span>Activate {selectedPlan === 'weekly' ? 'Weekly Pass (#950)' : 'VIP Monthly (#3500)'}</span>
-              <LockOpen size={16} weight="fill" className="text-black" />
-            </>
-          )}
+          <span>Activate {selectedPlan === 'weekly' ? 'Weekly Pass (#950)' : 'VIP Monthly (#3500)'}</span>
+          <LockOpen size={16} weight="fill" className="text-black" />
         </button>
 
         <p className="text-[10px] text-center text-gray-400 mt-3 flex items-center justify-center space-x-1">
           <Sparkle size={12} weight="fill" className="text-[#E5C058]" />
-          <span>Instant activation via Paystack secure gateway</span>
+          <span>Instant activation via Paystack</span>
         </p>
       </div>
     </div>
