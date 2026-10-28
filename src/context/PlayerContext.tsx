@@ -22,10 +22,12 @@ interface PlayerContextType {
   currentTime: number;
   duration: number;
   progress: number;
+  FREE_PREVIEW_LIMIT: number;
+  hasActiveSubscription: boolean;
   history: VideoItem[];
   watchlist: VideoItem[];
   openVideo: (videoId: string, startTime?: number) => Promise<void>;
-  playDirectUrl: (url: string, title?: string) => void;
+  playDirectUrl: (url: string, title?: string, episodeIndex?: number) => boolean | void;
   closeVideo: () => void;
   minimizePlayer: () => void;
   restoreFullscreen: () => void;
@@ -50,6 +52,8 @@ interface PlayerContextType {
   audioRef: React.RefObject<HTMLAudioElement | null>;
 }
 
+export const FREE_PREVIEW_LIMIT = 600; // 10 minutes in seconds
+
 const PlayerContext = createContext<PlayerContextType | null>(null);
 
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -69,7 +73,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isHDMode, setIsHDMode] = useState(false);
   const [activeDirectUrl, setActiveDirectUrl] = useState<string | null>(null);
 
-  const { user } = useAuth();
+  const { user, isVip, subscription } = useAuth();
+  const hasActiveSubscription = Boolean(user && isVip && subscription?.entitlement);
 
   // Real history and watchlist stored in localStorage
   const [history, setHistory] = useState<VideoItem[]>(() => {
@@ -184,6 +189,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       audio && audio.src && !audio.src.endsWith('/') && audio.src !== window.location.href
     );
 
+    // Enforce 10-minute preview limit
+    const current = (video && !video.paused ? video.currentTime : 0) || (audio && !audio.paused ? audio.currentTime : 0) || currentTime;
+    if (!hasActiveSubscription && current >= FREE_PREVIEW_LIMIT) {
+      if (video) video.pause();
+      if (audio) audio.pause();
+      setIsPlaying(false);
+      return;
+    }
+
     setIsPlaying(true);
     setIsBuffering(false);
 
@@ -228,7 +242,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (err) {
       console.warn('Playback play request error:', err);
     }
-  }, [isHDMode, isAudioReady, activeDirectUrl]);
+  }, [isHDMode, isAudioReady, activeDirectUrl, hasActiveSubscription, currentTime]);
 
   const syncPause = useCallback(() => {
     const video = videoRef.current;
@@ -471,7 +485,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [isMiniPlayer, syncPlay, syncPause, isHDMode, isPlaying]);
 
-  const playDirectUrl = useCallback((url: string, title = 'External Stream') => {
+  const playDirectUrl = useCallback((url: string, title = 'External Stream', episodeIndex?: number) => {
+    // Assert inability to watch episodes past episode 1 without active subscription
+    if (!hasActiveSubscription && typeof episodeIndex === 'number' && episodeIndex > 0) {
+      console.warn('Playback blocked: Episode is locked for non-VIP users.');
+      return false;
+    }
+
     if (isMiniPlayer) setIsMiniPlayer(false);
     setIsOpen(true);
     setActiveDirectUrl(url);
@@ -523,7 +543,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         recommended: []
       } as any);
     }
-  }, [isMiniPlayer, syncPlay, syncPause, streamDetails]);
+    return true;
+  }, [isMiniPlayer, syncPlay, syncPause, streamDetails, hasActiveSubscription]);
 
   const closeVideo = useCallback(() => {
     syncPause();
@@ -556,7 +577,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const audio = audioRef.current;
     const dur = video?.duration || audio?.duration || streamDetails?.lengthSeconds || 0;
     const current = video && !video.paused ? video.currentTime : audio ? audio.currentTime : 0;
-    const target = Math.max(0, Math.min(current + seconds, dur || 0));
+    let target = Math.max(0, Math.min(current + seconds, dur || 0));
+
+    if (!hasActiveSubscription && target > FREE_PREVIEW_LIMIT) {
+      target = FREE_PREVIEW_LIMIT;
+    }
 
     if (video) video.currentTime = target;
     if (audio && audio.src) audio.currentTime = target;
@@ -565,7 +590,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (dur > 0) {
       setProgress((target / dur) * 100);
     }
-  }, [streamDetails]);
+  }, [streamDetails, hasActiveSubscription]);
 
   const seek = useCallback((percent: number) => {
     const video = videoRef.current;
@@ -573,13 +598,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const dur = video?.duration || audio?.duration || streamDetails?.lengthSeconds || 0;
     if (!dur) return;
 
-    const targetTime = (percent / 100) * dur;
+    let targetTime = (percent / 100) * dur;
+    if (!hasActiveSubscription && targetTime > FREE_PREVIEW_LIMIT) {
+      targetTime = FREE_PREVIEW_LIMIT;
+    }
+
     if (video) video.currentTime = targetTime;
     if (audio && audio.src) audio.currentTime = targetTime;
 
     setCurrentTime(targetTime);
-    setProgress(percent);
-  }, [streamDetails]);
+    setProgress(dur > 0 ? (targetTime / dur) * 100 : percent);
+  }, [streamDetails, hasActiveSubscription]);
 
   const setHDMode = useCallback((enabled: boolean) => {
     setIsHDMode(enabled);
@@ -603,6 +632,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         currentTime,
         duration,
         progress,
+        FREE_PREVIEW_LIMIT,
+        hasActiveSubscription,
         history,
         watchlist,
         openVideo,

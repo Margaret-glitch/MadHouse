@@ -207,10 +207,11 @@ function verifyPendingTransactions() {
     Logger.log('Verifying transaction ref: ' + tx.reference);
 
     var res = verifyPaystack(tx.reference);
-    if (res && res.status && res.data && res.data.status === 'success') {
+    // STRICT VERIFICATION: Status must be true, data.status must be 'success'
+    if (res && res.status === true && res.data && res.data.status === 'success') {
       var data = res.data;
       var planId = tx.planId;
-      // Re-verify plan based on actual amount charged if needed
+      // Re-verify plan based on actual amount charged
       if (data.amount === 95000) {
         planId = 'weekly';
       } else if (data.amount === 350000) {
@@ -220,20 +221,19 @@ function verifyPendingTransactions() {
       grantEntitlement(tx.userId, tx.userEmail, planId, tx.reference, data);
       verifiedCount++;
     } else if (res && res.data && (res.data.status === 'failed' || res.data.status === 'abandoned')) {
-      var createdAt = tx.createdAt ? new Date(tx.createdAt).getTime() : 0;
-      var ageHours = (Date.now() - createdAt) / (1000 * 60 * 60);
-
-      // Keep in pending for up to 6 hours in case user resumes payment
-      if (ageHours > 6) {
-        Logger.log('Marking abandoned transaction as failed: ' + tx.reference);
-        breacherPut('userData/transactions/' + tx.reference, {
-          reference: tx.reference,
-          status: 'failed',
-          updatedAt: new Date().toISOString()
-        });
-      } else {
-        remainingPending.push(tx);
-      }
+      // NEVER mark incomplete, abandoned, or failed transactions as complete
+      Logger.log('Transaction failed/abandoned on Paystack: ' + tx.reference);
+      breacherPut('userData/transactions/' + tx.reference, {
+        reference: tx.reference,
+        userId: tx.userId,
+        userEmail: tx.userEmail,
+        planId: tx.planId,
+        amount: tx.amount,
+        status: 'failed',
+        updatedAt: new Date().toISOString(),
+        paystackResponse: res.data
+      });
+      // Do not re-add to remainingPending
     } else {
       // Still pending in Paystack, keep in queue
       remainingPending.push(tx);
@@ -248,6 +248,20 @@ function verifyPendingTransactions() {
 
   Logger.log('Batch complete. Verified: ' + verifiedCount + ', Remaining pending: ' + remainingPending.length);
   return { verifiedCount: verifiedCount, pendingCount: remainingPending.length };
+}
+
+/**
+ * Explicit 1-Minute Cron Handler for Pending Transactions
+ */
+function checkPendingTransactions() {
+  return verifyPendingTransactions();
+}
+
+/**
+ * Explicit 5-Minute Cron Handler for Expired Subscriptions
+ */
+function checkExpiredSubscriptions() {
+  return revokeExpiredSubscriptions();
 }
 
 /**
@@ -314,24 +328,33 @@ function runSubscriptionSync() {
 }
 
 /**
- * 4. Setup Automatic Time-Driven Triggers (Runs Every 5 Minutes)
+ * 4. Setup Automatic Time-Driven Triggers
+ * - checkPendingTransactions: Every 1 Minute
+ * - checkExpiredSubscriptions: Every 5 Minutes
  */
 function setupSubscriptionCron() {
   // Delete previous triggers to prevent duplicates
   var triggers = ScriptApp.getProjectTriggers();
   for (var i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === 'runSubscriptionSync') {
+    var fn = triggers[i].getHandlerFunction();
+    if (fn === 'runSubscriptionSync' || fn === 'checkPendingTransactions' || fn === 'checkExpiredSubscriptions') {
       ScriptApp.deleteTrigger(triggers[i]);
     }
   }
 
-  // Create new 5-minute recurring trigger
-  ScriptApp.newTrigger('runSubscriptionSync')
+  // 1. Every 1 minute: checkPendingTransactions
+  ScriptApp.newTrigger('checkPendingTransactions')
+    .timeBased()
+    .everyMinutes(1)
+    .create();
+
+  // 2. Every 5 minutes: checkExpiredSubscriptions
+  ScriptApp.newTrigger('checkExpiredSubscriptions')
     .timeBased()
     .everyMinutes(5)
     .create();
 
-  Logger.log('Successfully installed time-based trigger for runSubscriptionSync (Every 5 minutes).');
+  Logger.log('Successfully installed triggers: checkPendingTransactions (every 1 min) and checkExpiredSubscriptions (every 5 mins).');
 }
 
 /**

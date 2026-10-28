@@ -14,13 +14,22 @@ import {
   ThumbsDown,
   ShareNetwork,
   DownloadSimple,
-  BookmarkSimple
+  BookmarkSimple,
+  Lock,
+  LockOpen,
+  Crown
 } from '@phosphor-icons/react';
-import { usePlayer } from '../context/PlayerContext';
+import { usePlayer, FREE_PREVIEW_LIMIT } from '../context/PlayerContext';
+import { useAuth } from '../context/AuthContext';
 import { formatTime } from '../utils/format';
 import { normalizeItem } from '../services/invidious';
+import { SubscriptionCheckoutModal } from './SubscriptionCheckoutModal';
+import { AuthModal } from './AuthModal';
 
 export const VideoPlayerModal: React.FC = () => {
+  const { user, isVip, subscription, refreshSubscription } = useAuth();
+  const hasActiveSub = Boolean(user && isVip && subscription?.entitlement);
+
   const {
     isOpen,
     isMiniPlayer,
@@ -59,6 +68,19 @@ export const VideoPlayerModal: React.FC = () => {
 
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 10-Minute Free Preview Limit Reached state & Modals
+  const [isPreviewLimitReached, setIsPreviewLimitReached] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const handleOpenSubscriptionFlow = () => {
+    if (!user) {
+      setShowAuthModal(true);
+    } else {
+      setShowSubscriptionModal(true);
+    }
+  };
 
   // Music Mode ("On the move" - plays audio only, halts video rendering)
   const [isOnTheMove, setIsOnTheMove] = useState(false);
@@ -264,7 +286,7 @@ export const VideoPlayerModal: React.FC = () => {
   // Likes state
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isChannelSubscribed, setIsChannelSubscribed] = useState(false);
 
   // Reset mini player transform when opening or restoring
   useEffect(() => {
@@ -704,13 +726,28 @@ export const VideoPlayerModal: React.FC = () => {
           }`}
           playsInline
           onTimeUpdate={(e) => {
+            const v = e.currentTarget;
+            if (!v.duration || isNaN(v.duration)) return;
+
+            // Enforce 10-minute free preview limit for unsubscribed users
+            if (!hasActiveSub && v.currentTime >= FREE_PREVIEW_LIMIT) {
+              v.currentTime = FREE_PREVIEW_LIMIT;
+              if (!v.paused) v.pause();
+              if (audioRef.current && !audioRef.current.paused) audioRef.current.pause();
+              setCurrentTime(FREE_PREVIEW_LIMIT);
+              setIsPlaying(false);
+              setIsPreviewLimitReached(true);
+              return;
+            }
+
+            if (v.currentTime < FREE_PREVIEW_LIMIT && isPreviewLimitReached) {
+              setIsPreviewLimitReached(false);
+            }
+
             if (!isOnTheMove) {
-              const v = e.currentTarget;
-              if (v.duration && !isNaN(v.duration)) {
-                setCurrentTime(v.currentTime);
-                setDuration(v.duration);
-                setProgress((v.currentTime / v.duration) * 100);
-              }
+              setCurrentTime(v.currentTime);
+              setDuration(v.duration);
+              setProgress((v.currentTime / v.duration) * 100);
             }
           }}
           onLoadedMetadata={(e) => {
@@ -770,13 +807,24 @@ export const VideoPlayerModal: React.FC = () => {
           ref={audioRef}
           className="hidden"
           onTimeUpdate={(e) => {
+            const a = e.currentTarget;
+            if (!a.duration || isNaN(a.duration)) return;
+
+            // Enforce 10-minute free preview limit for unsubscribed users
+            if (!hasActiveSub && a.currentTime >= FREE_PREVIEW_LIMIT) {
+              a.currentTime = FREE_PREVIEW_LIMIT;
+              if (!a.paused) a.pause();
+              if (videoRef.current && !videoRef.current.paused) videoRef.current.pause();
+              setCurrentTime(FREE_PREVIEW_LIMIT);
+              setIsPlaying(false);
+              setIsPreviewLimitReached(true);
+              return;
+            }
+
             if (isOnTheMove) {
-              const a = e.currentTarget;
-              if (a.duration && !isNaN(a.duration)) {
-                setCurrentTime(a.currentTime);
-                setDuration(a.duration);
-                setProgress((a.currentTime / a.duration) * 100);
-              }
+              setCurrentTime(a.currentTime);
+              setDuration(a.duration);
+              setProgress((a.currentTime / a.duration) * 100);
             }
           }}
           onLoadedMetadata={(e) => {
@@ -803,6 +851,22 @@ export const VideoPlayerModal: React.FC = () => {
             }
           }}
         />
+
+        {/* 10-Minute Limit Reached: Flat Pill at the bottom center */}
+        {(!hasActiveSub && (currentTime >= FREE_PREVIEW_LIMIT || isPreviewLimitReached)) && (
+          <div className="absolute bottom-4 inset-x-0 flex items-center justify-center z-40 px-4 pointer-events-auto animate-fadeIn">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenSubscriptionFlow();
+              }}
+              className="px-6 py-2.5 bg-[#E5C058] hover:bg-[#edd06f] text-black font-extrabold text-xs sm:text-sm tracking-wide rounded-full shadow-[0_4px_25px_rgba(229,192,88,0.45)] border border-[#E5C058] flex items-center space-x-2 active:scale-95 transition-all cursor-pointer select-none"
+            >
+              <span>Unlimited access</span>
+              <LockOpen size={18} weight="fill" className="text-black" />
+            </button>
+          </div>
+        )}
 
         {/* Mini player overlay quick badge / close */}
         {isMiniPlayer && (
@@ -908,6 +972,15 @@ export const VideoPlayerModal: React.FC = () => {
                 step="0.1"
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
+                  if (!hasActiveSub && duration > 0) {
+                    const maxAllowedPct = (FREE_PREVIEW_LIMIT / duration) * 100;
+                    if (val >= maxAllowedPct) {
+                      seek(maxAllowedPct);
+                      setIsPreviewLimitReached(true);
+                      triggerControls();
+                      return;
+                    }
+                  }
                   seek(val);
                   triggerControls();
                 }}
@@ -1011,12 +1084,12 @@ export const VideoPlayerModal: React.FC = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => setIsSubscribed(!isSubscribed)}
+                    onClick={() => setIsChannelSubscribed(!isChannelSubscribed)}
                     className={`${
-                      isSubscribed ? 'bg-gray-700 text-white' : 'bg-white text-black'
+                      isChannelSubscribed ? 'bg-gray-700 text-white' : 'bg-white text-black'
                     } text-xs font-semibold px-4 py-2 rounded-full active:opacity-80 cursor-pointer transition-colors`}
                   >
-                    {isSubscribed ? 'Subscribed' : 'Subscribe'}
+                    {isChannelSubscribed ? 'Subscribed' : 'Subscribe'}
                   </button>
                 </div>
               )}
@@ -1137,28 +1210,49 @@ export const VideoPlayerModal: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {streamDetails.downloads.map((dl, idx) => {
                   const isActive = activeDirectUrl === dl.url;
+                  // First episode (idx === 0) allows first 10 minutes free preview. Subsequent episodes (idx > 0) are strictly locked.
+                  const isEpisodeLocked = !hasActiveSub && idx > 0;
+
                   return (
                     <div
                       key={idx}
-                      onClick={() => playDirectUrl(dl.url, dl.label)}
+                      onClick={() => {
+                        if (isEpisodeLocked) {
+                          handleOpenSubscriptionFlow();
+                          return;
+                        }
+                        playDirectUrl(dl.url, dl.label, idx);
+                      }}
                       className={`flex items-center justify-between p-3 rounded-xl border transition-all group cursor-pointer ${
                         isActive
                           ? 'bg-butterYellow/15 border-butterYellow/50 shadow-[0_0_15px_rgba(229,192,88,0.1)]'
+                          : isEpisodeLocked
+                          ? 'bg-white/[0.02] border-white/5 opacity-70 hover:opacity-100 hover:border-[#E5C058]/30'
                           : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                       }`}
                     >
                       <div className="flex items-center space-x-3 min-w-0 pr-2">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                          isActive 
+                          isEpisodeLocked
+                            ? 'bg-white/5 text-gray-400 group-hover:text-[#E5C058]'
+                            : isActive 
                             ? 'bg-butterYellow text-black' 
                             : 'bg-butterYellow/10 text-butterYellow group-hover:bg-butterYellow group-hover:text-black'
                         }`}>
-                          <Play size={16} weight="fill" className="ml-0.5" />
+                          {isEpisodeLocked ? (
+                            <Lock size={15} weight="fill" />
+                          ) : (
+                            <Play size={16} weight="fill" className="ml-0.5" />
+                          )}
                         </div>
                         <div className="flex flex-col min-w-0">
                           <div className="flex items-center space-x-2">
                             <span className={`text-xs font-semibold truncate transition-colors ${
-                              isActive ? 'text-butterYellow' : 'text-white group-hover:text-butterYellow'
+                              isEpisodeLocked
+                                ? 'text-gray-300 group-hover:text-[#E5C058]'
+                                : isActive 
+                                ? 'text-butterYellow' 
+                                : 'text-white group-hover:text-butterYellow'
                             }`}>
                               {dl.label}
                             </span>
@@ -1167,23 +1261,42 @@ export const VideoPlayerModal: React.FC = () => {
                                 Playing
                               </span>
                             )}
+                            {isEpisodeLocked && (
+                              <span className="bg-[#E5C058]/15 text-[#E5C058] border border-[#E5C058]/30 text-[8px] font-extrabold px-1.5 py-0.5 rounded-sm uppercase tracking-wider flex items-center space-x-0.5">
+                                <Lock size={9} weight="fill" />
+                                <span>VIP</span>
+                              </span>
+                            )}
                           </div>
                           <span className="text-[10px] text-gray-400 mt-0.5">
-                            {dl.size_human} • {dl.quality || 'Direct'}
+                            {dl.size_human} • {dl.quality || 'Direct'} {isEpisodeLocked ? '• Subscription required' : ''}
                           </span>
                         </div>
                       </div>
 
-                      <a
-                        href={dl.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 text-white flex items-center justify-center transition-all flex-shrink-0"
-                        title="Download"
-                      >
-                        <DownloadSimple size={16} weight="bold" />
-                      </a>
+                      {isEpisodeLocked ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenSubscriptionFlow();
+                          }}
+                          className="w-8 h-8 rounded-full bg-white/5 hover:bg-[#E5C058] hover:text-black text-gray-400 flex items-center justify-center transition-all flex-shrink-0 cursor-pointer"
+                          title="Locked - Subscription Required"
+                        >
+                          <Lock size={15} weight="fill" />
+                        </button>
+                      ) : (
+                        <a
+                          href={dl.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 text-white flex items-center justify-center transition-all flex-shrink-0"
+                          title="Download"
+                        >
+                          <DownloadSimple size={16} weight="bold" />
+                        </a>
+                      )}
                     </div>
                   );
                 })}
@@ -1242,8 +1355,27 @@ export const VideoPlayerModal: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
       )}
+
+      {/* Subscription Checkout Modal */}
+      <SubscriptionCheckoutModal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onSuccess={async () => {
+          setIsPreviewLimitReached(false);
+          await refreshSubscription();
+        }}
+      />
+
+      {/* Sign In / Register Prompt Modal for Unauthenticated Users */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={() => {
+          setShowAuthModal(false);
+          setShowSubscriptionModal(true);
+        }}
+      />
     </div>
   );
 };
