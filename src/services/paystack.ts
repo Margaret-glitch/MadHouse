@@ -366,40 +366,58 @@ export function initiatePaystackSubscription({
     console.warn('Background pending transaction log failed:', err)
   );
 
+  const handleSuccess = (response: { reference?: string }) => {
+    grantSubscriptionEntitlement(user, plan, response ? response.reference || reference : reference)
+      .then((sub) => {
+        if (typeof onSuccess === 'function') onSuccess(sub);
+      })
+      .catch((err) => {
+        if (typeof onError === 'function') onError(err instanceof Error ? err : new Error(String(err)));
+      });
+  };
+
+  const handleClose = () => {
+    if (typeof onClose === 'function') onClose();
+  };
+
   const paystackWindow = window as any;
-  if (!paystackWindow.PaystackPop || typeof paystackWindow.PaystackPop.setup !== 'function') {
+
+  if (typeof paystackWindow.payWithPaystack === 'function') {
+    paystackWindow.payWithPaystack(
+      userEmail,
+      plan.amount * 100,
+      reference,
+      handleSuccess,
+      handleClose
+    );
+    return;
+  }
+
+  if (!paystackWindow.PaystackPop) {
     if (typeof onError === 'function') onError(new Error('Paystack Payment Gateway SDK is loading. Please try again.'));
     return;
   }
 
   try {
-    const handler = paystackWindow.PaystackPop.setup({
+    const options = {
       key: PAYSTACK_PUBLIC_KEY,
       email: userEmail,
-      amount: plan.amount * 100, // Amount in Kobo
+      amount: plan.amount * 100,
       currency: 'NGN',
       ref: reference,
-      onClose: function () {
-        if (typeof onClose === 'function') {
-          onClose();
-        }
-      },
-      callback: function (response: { reference: string }) {
-        grantSubscriptionEntitlement(user, plan, response ? response.reference || reference : reference)
-          .then((sub) => {
-            if (typeof onSuccess === 'function') {
-              onSuccess(sub);
-            }
-          })
-          .catch((err) => {
-            if (typeof onError === 'function') {
-              onError(err instanceof Error ? err : new Error(String(err)));
-            }
-          });
-      }
-    });
+      callback: handleSuccess,
+      onSuccess: handleSuccess,
+      onClose: handleClose,
+      onCancel: handleClose
+    };
 
-    handler.openIframe();
+    if (typeof paystackWindow.PaystackPop.setup === 'function') {
+      const handler = paystackWindow.PaystackPop.setup(options);
+      handler.openIframe();
+    } else if (typeof paystackWindow.PaystackPop === 'function') {
+      const paystack = new paystackWindow.PaystackPop();
+      paystack.newTransaction(options);
+    }
   } catch (err: any) {
     console.error('Paystack Pop setup error:', err);
     if (typeof onError === 'function') {
