@@ -30,7 +30,7 @@ export const SubscriptionCheckoutModal: React.FC<SubscriptionCheckoutModalProps>
 
   if (!isOpen) return null;
 
-  const handleCheckout = async (planId: 'weekly' | 'vip_monthly') => {
+  const handleCheckout = (planId: 'weekly' | 'vip_monthly') => {
     if (!user) {
       setError('Please sign in or create an account first.');
       return;
@@ -43,38 +43,49 @@ export const SubscriptionCheckoutModal: React.FC<SubscriptionCheckoutModalProps>
       return;
     }
 
-    try {
-      const now = new Date();
-      const expiry = new Date(now.getTime() + plan.termDays * 24 * 60 * 60 * 1000);
-      const userKey = (user.id || user.email).toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-      const reference = 'MH_' + Date.now();
+    const payWindow = window as any;
+    if (typeof payWindow.payWithPaystack === 'function') {
+      payWindow.payWithPaystack(
+        user.email || 'customer@email.com',
+        plan.amount * 100,
+        async (response: any) => {
+          try {
+            const now = new Date();
+            const expiry = new Date(now.getTime() + plan.termDays * 24 * 60 * 60 * 1000);
+            const userKey = (user.id || user.email).toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+            const reference = response?.reference || ('MH_' + Date.now());
 
-      const sub: SubscriptionRecord = {
-        userId: user.id || user.email,
-        userEmail: user.email,
-        planId: plan.id,
-        planName: plan.name,
-        amount: plan.amount * 100,
-        reference,
-        status: 'active',
-        entitlement: true,
-        startDate: now.toISOString(),
-        expiryDate: expiry.toISOString(),
-        daysLeft: plan.termDays,
-        updatedAt: now.toISOString()
-      };
+            const sub: SubscriptionRecord = {
+              userId: user.id || user.email,
+              userEmail: user.email,
+              planId: plan.id,
+              planName: plan.name,
+              amount: plan.amount * 100,
+              reference,
+              status: 'active',
+              entitlement: true,
+              startDate: now.toISOString(),
+              expiryDate: expiry.toISOString(),
+              daysLeft: plan.termDays,
+              updatedAt: now.toISOString()
+            };
 
-      await fetch(`https://storage.breacher.name.ng/U6op8Nr462Z46tBgxa2COUnja5z1/madhouse-db/userData/subscription_${userKey}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sub)
-      });
+            await fetch(`https://storage.breacher.name.ng/U6op8Nr462Z46tBgxa2COUnja5z1/madhouse-db/userData/subscription_${userKey}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(sub)
+            });
 
-      await refreshSubscription();
-      onSuccess?.(sub);
-      onClose();
-    } catch (err: any) {
-      setError(err.message || 'Subscription activation failed.');
+            await refreshSubscription();
+            onSuccess?.(sub);
+            onClose();
+          } catch (err: any) {
+            setError(err.message || 'Subscription activation failed.');
+          }
+        }
+      );
+    } else {
+      setError('Paystack SDK not loaded.');
     }
   };
 
