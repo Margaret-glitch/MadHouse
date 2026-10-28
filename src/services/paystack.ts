@@ -7,7 +7,7 @@
 import { BASE_DB, createDocument, readDocument } from './madhouseDb';
 import { MadHouseUser } from './madhouseAuth';
 
-export const PAYSTACK_PUBLIC_KEY = 'pk_live_8185c8c5269f36e4dde4094f7196ce3d37a148e5';
+export const PAYSTACK_PUBLIC_KEY = 'pk_test_a25c13f990472e399589d81d2dfdd204caebec47';
 
 export interface PlanConfig {
   id: string;
