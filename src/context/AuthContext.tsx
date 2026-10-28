@@ -6,10 +6,21 @@ import {
   registerMadHouse,
   logoutMadHouse
 } from '../services/madhouseAuth';
-import {
-  SubscriptionRecord,
-  fetchUserSubscription
-} from '../services/paystack';
+
+export interface SubscriptionRecord {
+  userId: string;
+  userEmail: string;
+  planId: string;
+  planName: string;
+  amount: number;
+  reference: string;
+  status: 'active' | 'expired' | 'none';
+  entitlement: boolean;
+  startDate: string;
+  expiryDate: string;
+  daysLeft: number;
+  updatedAt: string;
+}
 
 interface AuthContextType {
   user: MadHouseUser | null;
@@ -37,11 +48,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return null;
     }
     try {
-      const sub = await fetchUserSubscription(active.id || active.email);
-      setSubscription(sub);
-      return sub;
+      const userKey = (active.id || active.email).toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+      const res = await fetch(`https://storage.breacher.name.ng/U6op8Nr462Z46tBgxa2COUnja5z1/madhouse-db/userData/subscription_${userKey}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.status === 'active' && data.entitlement) {
+          setSubscription(data);
+          return data;
+        }
+      }
+      setSubscription(null);
+      return null;
     } catch (err) {
-      console.warn('Subscription fetch error:', err);
       setSubscription(null);
       return null;
     }

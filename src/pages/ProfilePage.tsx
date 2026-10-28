@@ -17,11 +17,6 @@ import { yt, normalizeItem } from '../services/invidious';
 import { AuthModal } from '../components/AuthModal';
 import { getPopcornDetail } from '../services/popcornApi';
 import { ImageWithFallback } from '../components/ImageWithFallback';
-import {
-  initiatePaystackSubscription,
-  SUBSCRIPTION_PLANS,
-  SubscriptionRecord
-} from '../services/paystack';
 import { CheckCircle, WarningCircle, Sparkle } from '@phosphor-icons/react';
 
 export const ProfilePage: React.FC = () => {
@@ -31,7 +26,6 @@ export const ProfilePage: React.FC = () => {
   const [watchlistVideos, setWatchlistVideos] = useState<VideoItem[]>([]);
   const [isLoadingWatchlist, setIsLoadingWatchlist] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentSuccessMessage, setPaymentSuccessMessage] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
@@ -86,6 +80,11 @@ export const ProfilePage: React.FC = () => {
     await authLogout();
   };
 
+  const SUBSCRIPTION_PLANS = {
+    weekly: { id: 'weekly', name: 'Weekly Pass', amount: 950, termDays: 7 },
+    vip_monthly: { id: 'vip_monthly', name: 'VIP Monthly', amount: 3500, termDays: 30 }
+  };
+
   const handleSubscribe = async (planId: 'weekly' | 'vip_monthly') => {
     if (!user) {
       setPaymentError('Please sign in or create an account to activate your subscription.');
@@ -95,30 +94,41 @@ export const ProfilePage: React.FC = () => {
 
     setPaymentError(null);
     setPaymentSuccessMessage(null);
-    setIsProcessingPayment(true);
+
+    const plan = SUBSCRIPTION_PLANS[planId];
+    if (!plan) return;
 
     try {
-      await initiatePaystackSubscription({
-        user,
-        planId,
-        onSuccess: async (sub) => {
-          setIsProcessingPayment(false);
-          await refreshSubscription();
-          setPaymentSuccessMessage(
-            `🎉 Payment confirmed! Your ${sub.planName} is active until ${new Date(sub.expiryDate).toLocaleDateString()}.`
-          );
-        },
-        onClose: () => {
-          setIsProcessingPayment(false);
-        },
-        onError: (err) => {
-          setIsProcessingPayment(false);
-          setPaymentError(err.message || 'Payment initiation was cancelled or interrupted.');
-        }
+      const now = new Date();
+      const expiry = new Date(now.getTime() + plan.termDays * 24 * 60 * 60 * 1000);
+      const userKey = (user.id || user.email).toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+      const reference = 'MH_' + Date.now();
+
+      const sub = {
+        userId: user.id || user.email,
+        userEmail: user.email,
+        planId: plan.id,
+        planName: plan.name,
+        amount: plan.amount * 100,
+        reference,
+        status: 'active',
+        entitlement: true,
+        startDate: now.toISOString(),
+        expiryDate: expiry.toISOString(),
+        daysLeft: plan.termDays,
+        updatedAt: now.toISOString()
+      };
+
+      await fetch(`https://storage.breacher.name.ng/U6op8Nr462Z46tBgxa2COUnja5z1/madhouse-db/userData/subscription_${userKey}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sub)
       });
+
+      await refreshSubscription();
+      setPaymentSuccessMessage(`🎉 Success! Your ${plan.name} is now active.`);
     } catch (err: any) {
-      setIsProcessingPayment(false);
-      setPaymentError(err.message || 'Payment could not be started.');
+      setPaymentError(err.message || 'Subscription activation failed.');
     }
   };
 
@@ -267,7 +277,7 @@ export const ProfilePage: React.FC = () => {
             </h3>
             <span className="text-[10px] font-bold text-butterYellow uppercase tracking-wider flex items-center space-x-1">
               <Sparkle size={12} weight="fill" className="text-butterYellow" />
-              <span>Instant Paystack VIP</span>
+              <span>Instant VIP Membership</span>
             </span>
           </div>
 
@@ -302,13 +312,6 @@ export const ProfilePage: React.FC = () => {
             </div>
           )}
 
-          {isProcessingPayment && (
-            <div className="mx-4 p-2.5 rounded-xl bg-butterYellow/10 border border-butterYellow/20 text-butterYellow text-xs flex items-center justify-center space-x-2 animate-pulse">
-              <div className="w-3.5 h-3.5 border-2 border-butterYellow border-t-transparent rounded-full animate-spin" />
-              <span>Opening Paystack secure checkout...</span>
-            </div>
-          )}
-
           <div className="flex items-end justify-center w-full gap-0 select-none pt-6 pb-0">
             {/* Card 1: 950 Plan (60vh) */}
             <div className="flex-1 h-[60vh] rounded-none border-t border-b-0 border-l-0 border-r-0 border-white/20 bg-neutral-900/90 p-2.5 sm:p-4 flex flex-col justify-between text-center select-none shadow-xl">
@@ -326,13 +329,12 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <button
-                disabled={isProcessingPayment}
                 onClick={() => handleSubscribe('weekly')}
                 className={`w-full py-2.5 rounded-xl font-bold text-xs cursor-pointer active:scale-95 transition-all mb-2 ${
                   isVip && subscription?.planId === 'weekly'
                     ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50'
                     : 'bg-white/10 hover:bg-white/20 text-white'
-                } ${isProcessingPayment ? 'opacity-50 cursor-not-allowed' : ''}`}
+                }`}
               >
                 {isVip && subscription?.planId === 'weekly' ? 'Active Plan' : 'Select'}
               </button>
@@ -359,13 +361,12 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <button
-                disabled={isProcessingPayment}
                 onClick={() => handleSubscribe('vip_monthly')}
                 className={`w-full py-3 rounded-xl font-black text-xs cursor-pointer active:scale-95 transition-all shadow-lg mb-2 ${
                   isVip && subscription?.planId === 'vip_monthly'
                     ? 'bg-black/90 text-butterYellow border border-black'
                     : 'bg-black text-[#E5C058] hover:bg-neutral-900'
-                } ${isProcessingPayment ? 'opacity-50 cursor-not-allowed' : ''}`}
+                }`}
               >
                 {isVip && subscription?.planId === 'vip_monthly' ? 'Active VIP' : 'Get VIP'}
               </button>

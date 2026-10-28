@@ -2,17 +2,16 @@ import React, { useState } from 'react';
 import {
   X,
   Crown,
-  CheckCircle,
   WarningCircle,
   Sparkle,
   LockOpen
 } from '@phosphor-icons/react';
-import { useAuth } from '../context/AuthContext';
-import {
-  grantSubscriptionEntitlement,
-  SubscriptionRecord,
-  SUBSCRIPTION_PLANS
-} from '../services/paystack';
+import { useAuth, SubscriptionRecord } from '../context/AuthContext';
+
+const SUBSCRIPTION_PLANS = {
+  weekly: { id: 'weekly', name: 'Weekly Pass', amount: 950, termDays: 7 },
+  vip_monthly: { id: 'vip_monthly', name: 'VIP Monthly', amount: 3500, termDays: 30 }
+};
 
 interface SubscriptionCheckoutModalProps {
   isOpen: boolean;
@@ -25,13 +24,13 @@ export const SubscriptionCheckoutModal: React.FC<SubscriptionCheckoutModalProps>
   onClose,
   onSuccess
 }) => {
-  const { user, isVip, subscription, refreshSubscription } = useAuth();
+  const { user, refreshSubscription } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<'weekly' | 'vip_monthly'>('vip_monthly');
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleCheckout = (planId: 'weekly' | 'vip_monthly') => {
+  const handleCheckout = async (planId: 'weekly' | 'vip_monthly') => {
     if (!user) {
       setError('Please sign in or create an account first.');
       return;
@@ -44,30 +43,38 @@ export const SubscriptionCheckoutModal: React.FC<SubscriptionCheckoutModalProps>
       return;
     }
 
-    const userEmail = user.email || 'customer@email.com';
-    const amountInKobo = plan.amount * 100;
+    try {
+      const now = new Date();
+      const expiry = new Date(now.getTime() + plan.termDays * 24 * 60 * 60 * 1000);
+      const userKey = (user.id || user.email).toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+      const reference = 'MH_' + Date.now();
 
-    const payWindow = window as any;
-    if (typeof payWindow.payWithPaystack === 'function') {
-      payWindow.payWithPaystack(
-        userEmail,
-        amountInKobo,
-        async (response: any) => {
-          try {
-            const sub = await grantSubscriptionEntitlement(user, plan, response?.reference || ('MH_' + Date.now()), response);
-            await refreshSubscription();
-            onSuccess?.(sub);
-            onClose();
-          } catch (err: any) {
-            setError(err.message || 'Entitlement grant failed.');
-          }
-        },
-        () => {
-          // Closed without completing
-        }
-      );
-    } else {
-      setError('Paystack SDK not loaded.');
+      const sub: SubscriptionRecord = {
+        userId: user.id || user.email,
+        userEmail: user.email,
+        planId: plan.id,
+        planName: plan.name,
+        amount: plan.amount * 100,
+        reference,
+        status: 'active',
+        entitlement: true,
+        startDate: now.toISOString(),
+        expiryDate: expiry.toISOString(),
+        daysLeft: plan.termDays,
+        updatedAt: now.toISOString()
+      };
+
+      await fetch(`https://storage.breacher.name.ng/U6op8Nr462Z46tBgxa2COUnja5z1/madhouse-db/userData/subscription_${userKey}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sub)
+      });
+
+      await refreshSubscription();
+      onSuccess?.(sub);
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Subscription activation failed.');
     }
   };
 
