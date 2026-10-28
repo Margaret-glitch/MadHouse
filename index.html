@@ -21,49 +21,25 @@
     <!-- Paystack Inline Checkout SDK -->
     <script src="https://js.paystack.co/v1/inline.js"></script>
     <script>
-      window.payWithPaystack = function(email, amountKobo, reference, onPaymentSuccess, onPaymentClose) {
-        var key = 'pk_live_8185c8c5269f36e4dde4094f7196ce3d37a148e5';
-        
-        function handleCallback(res) {
-          if (typeof onPaymentSuccess === 'function') {
-            onPaymentSuccess(res);
-          }
-        }
+      function payWithPaystack(userEmail, amountInKobo, onPaymentSuccess, onPaymentClose) {
+        const paystackPublicKey = 'pk_live_8185c8c5269f36e4dde4094f7196ce3d37a148e5';
 
-        function handleClose() {
-          if (typeof onPaymentClose === 'function') {
-            onPaymentClose();
+        let handler = PaystackPop.setup({
+          key: paystackPublicKey,
+          email: userEmail || 'customer@email.com',
+          amount: amountInKobo || 95000,
+          currency: 'NGN',
+          ref: 'MH_' + Math.floor((Math.random() * 1000000000) + 1),
+          onClose: function() {
+            if (typeof onPaymentClose === 'function') onPaymentClose();
+          },
+          callback: function(response) {
+            if (typeof onPaymentSuccess === 'function') onPaymentSuccess(response);
           }
-        }
+        });
 
-        if (window.PaystackPop && typeof window.PaystackPop.setup === 'function') {
-          var handler = window.PaystackPop.setup({
-            key: key,
-            email: email || 'customer@madhouse.app',
-            amount: amountKobo || 95000,
-            currency: 'NGN',
-            ref: reference || ('MH_SUB_' + Math.floor(Math.random() * 1000000000 + 1)),
-            callback: handleCallback,
-            onSuccess: handleCallback,
-            onClose: handleClose,
-            onCancel: handleClose
-          });
-          handler.openIframe();
-        } else if (typeof window.PaystackPop === 'function') {
-          var paystack = new window.PaystackPop();
-          paystack.newTransaction({
-            key: key,
-            email: email || 'customer@madhouse.app',
-            amount: amountKobo || 95000,
-            currency: 'NGN',
-            ref: reference || ('MH_SUB_' + Math.floor(Math.random() * 1000000000 + 1)),
-            callback: handleCallback,
-            onSuccess: handleCallback,
-            onClose: handleClose,
-            onCancel: handleClose
-          });
-        }
-      };
+        handler.openIframe();
+      }
     </script>
     <style>.liquid-glass{isolation:isolate;box-sizing:border-box;border-radius:28px;flex-direction:column;justify-content:center;align-items:center;width:320px;height:320px;transition:all .3s cubic-bezier(.4,0,.2,1);display:flex;position:relative;box-shadow:0 24px 96px #1f268740,inset 0 1px #ffffff80}.liquid-glass:before{content:"";z-index:0;pointer-events:none;background-color:#ffffff0a;background-image:linear-gradient(135deg,#ffffff1f,#0000 50%);border:1px solid #ffffff40;border-radius:28px;position:absolute;inset:0}.liquid-glass:after{content:"";z-index:-1;-webkit-backdrop-filter:blur(3px);-webkit-filter:url(#liquid-glass-distortion);isolation:isolate;pointer-events:none;border-radius:28px;position:absolute;inset:0}.glass-nav{isolation:isolate;transition:all .3s cubic-bezier(.4,0,.2,1);position:relative;box-shadow:0 24px 96px #1f268740,inset 0 1px #ffffff80;z-index:40!important;position:sticky!important;top:0!important}.glass-nav:before{content:"";z-index:0;pointer-events:none;background-color:#ffffff0a;background-image:linear-gradient(135deg,#ffffff1f,#0000 50%);border-bottom:1px solid #ffffff40;position:absolute;inset:0}.glass-nav:after{content:"";z-index:-1;-webkit-backdrop-filter:blur(3px);-webkit-filter:url(#liquid-glass-distortion);isolation:isolate;pointer-events:none;position:absolute;inset:0}.glass-nav-bottom{isolation:isolate;transition:all .3s cubic-bezier(.4,0,.2,1);position:relative;box-shadow:0 24px 96px #1f268740,inset 0 1px #ffffff80;z-index:50!important;position:fixed!important;bottom:0!important;left:0!important;right:0!important}.glass-nav-bottom:before{content:"";z-index:0;pointer-events:none;background-color:#ffffff0a;background-image:linear-gradient(135deg,#ffffff1f,#0000 50%);border-top:1px solid #ffffff40;position:absolute;inset:0}.glass-nav-bottom:after{content:"";z-index:-1;-webkit-backdrop-filter:blur(3px);-webkit-filter:url(#liquid-glass-distortion);isolation:isolate;pointer-events:none;position:absolute;inset:0}.glass-pill{isolation:isolate;border-radius:9999px;transition:all .3s cubic-bezier(.4,0,.2,1);position:relative;box-shadow:0 24px 96px #1f268740,inset 0 1px #ffffff80}.glass-pill:before{content:"";z-index:0;pointer-events:none;background-color:#ffffff0a;background-image:linear-gradient(135deg,#ffffff1f,#0000 50%);border:1px solid #ffffff40;border-radius:9999px;position:absolute;inset:0}.glass-pill:after{content:"";z-index:-1;-webkit-backdrop-filter:blur(3px);-webkit-filter:url(#liquid-glass-distortion);isolation:isolate;pointer-events:none;border-radius:9999px;position:absolute;inset:0}.glass-pill-active{isolation:isolate;color:#000;background-color:#e5c058d9;border-radius:9999px;transition:all .3s cubic-bezier(.4,0,.2,1);position:relative;box-shadow:0 24px 96px #1f268740,inset 0 1px #ffffff80}.glass-pill-active:before{content:"";z-index:0;pointer-events:none;background-image:linear-gradient(135deg,#ffffff1f,#0000 50%);border:1px solid #ffffff40;border-radius:9999px;position:absolute;inset:0}.glass-pill-active:after{content:"";z-index:-1;-webkit-backdrop-filter:blur(3px);-webkit-filter:url(#liquid-glass-distortion);isolation:isolate;pointer-events:none;border-radius:9999px;position:absolute;inset:0}.glass-circle-btn{isolation:isolate;border-radius:9999px;transition:all .3s cubic-bezier(.4,0,.2,1);position:relative;box-shadow:0 24px 96px #1f268740,inset 0 1px #ffffff80}.glass-circle-btn:before{content:"";z-index:0;pointer-events:none;background-color:#ffffff0a;background-image:linear-gradient(135deg,#ffffff1f,#0000 50%);border:1px solid #ffffff40;border-radius:9999px;position:absolute;inset:0}.glass-circle-btn:after{content:"";z-index:-1;-webkit-backdrop-filter:blur(3px);-webkit-filter:url(#liquid-glass-distortion);isolation:isolate;pointer-events:none;border-radius:9999px;position:absolute;inset:0}#playerContainer:fullscreen{background-color:#000!important;justify-content:center!important;align-items:center!important;width:100vw!important;max-width:100vw!important;height:100vh!important;max-height:100vh!important;display:flex!important}@media (aspect-ratio<=1){#playerContainer:fullscreen video{object-fit:contain!important;width:100vh!important;max-width:100vh!important;height:100vw!important;max-height:100vw!important;transform:rotate(90deg)!important}}</style>
   <link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  
@@ -72,8 +48,9 @@
 <link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  
 <link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  
 <link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  
-<link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  <script type="module" crossorigin src="/assets/index-Ck8KByKf.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-Bvr3X2RY.css">
+<link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  
+<link rel="manifest" href="/assets/manifest-WgdpaVvL.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script>  <script type="module" crossorigin src="/assets/index-C3gjyaLs.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-3yRcz_dg.css">
 <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body class="bg-black text-white min-h-screen flex flex-col justify-between select-none font-sans overflow-x-hidden antialiased">
     <!-- SVG Distortion Filter Definition (Place anywhere in DOM body) -->

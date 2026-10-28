@@ -358,70 +358,50 @@ export function initiatePaystackSubscription({
     return;
   }
 
-  const userEmail = user.email || 'customer@madhouse.app';
-  const reference = 'MH_SUB_' + Math.floor(Math.random() * 1000000000 + 1);
-
-  // Background transaction log
-  logPendingTransaction(user, plan, reference).catch((err) =>
-    console.warn('Background pending transaction log failed:', err)
-  );
-
-  const handleSuccess = (response: { reference?: string }) => {
-    grantSubscriptionEntitlement(user, plan, response ? response.reference || reference : reference)
-      .then((sub) => {
-        if (typeof onSuccess === 'function') onSuccess(sub);
-      })
-      .catch((err) => {
-        if (typeof onError === 'function') onError(err instanceof Error ? err : new Error(String(err)));
-      });
-  };
-
-  const handleClose = () => {
-    if (typeof onClose === 'function') onClose();
-  };
+  const userEmail = user.email || 'customer@email.com';
+  const amountInKobo = plan.amount * 100;
 
   const paystackWindow = window as any;
 
   if (typeof paystackWindow.payWithPaystack === 'function') {
     paystackWindow.payWithPaystack(
       userEmail,
-      plan.amount * 100,
-      reference,
-      handleSuccess,
-      handleClose
+      amountInKobo,
+      function (response: any) {
+        grantSubscriptionEntitlement(user, plan, response ? response.reference || '' : '')
+          .then((sub) => {
+            if (typeof onSuccess === 'function') onSuccess(sub);
+          })
+          .catch((err) => {
+            if (typeof onError === 'function') onError(err instanceof Error ? err : new Error(String(err)));
+          });
+      },
+      function () {
+        if (typeof onClose === 'function') onClose();
+      }
     );
-    return;
-  }
-
-  if (!paystackWindow.PaystackPop) {
-    if (typeof onError === 'function') onError(new Error('Paystack Payment Gateway SDK is loading. Please try again.'));
-    return;
-  }
-
-  try {
-    const options = {
+  } else if (paystackWindow.PaystackPop && typeof paystackWindow.PaystackPop.setup === 'function') {
+    const handler = paystackWindow.PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
       email: userEmail,
-      amount: plan.amount * 100,
+      amount: amountInKobo,
       currency: 'NGN',
-      ref: reference,
-      callback: handleSuccess,
-      onSuccess: handleSuccess,
-      onClose: handleClose,
-      onCancel: handleClose
-    };
-
-    if (typeof paystackWindow.PaystackPop.setup === 'function') {
-      const handler = paystackWindow.PaystackPop.setup(options);
-      handler.openIframe();
-    } else if (typeof paystackWindow.PaystackPop === 'function') {
-      const paystack = new paystackWindow.PaystackPop();
-      paystack.newTransaction(options);
-    }
-  } catch (err: any) {
-    console.error('Paystack Pop setup error:', err);
-    if (typeof onError === 'function') {
-      onError(err instanceof Error ? err : new Error(String(err)));
-    }
+      ref: 'MH_' + Math.floor(Math.random() * 1000000000 + 1),
+      onClose: function () {
+        if (typeof onClose === 'function') onClose();
+      },
+      callback: function (response: any) {
+        grantSubscriptionEntitlement(user, plan, response ? response.reference || '' : '')
+          .then((sub) => {
+            if (typeof onSuccess === 'function') onSuccess(sub);
+          })
+          .catch((err) => {
+            if (typeof onError === 'function') onError(err instanceof Error ? err : new Error(String(err)));
+          });
+      }
+    });
+    handler.openIframe();
+  } else {
+    if (typeof onError === 'function') onError(new Error('Paystack Payment Gateway SDK is loading. Please try again.'));
   }
 }
