@@ -332,7 +332,7 @@ export async function fetchUserSubscription(
 }
 
 /**
- * Start Paystack Pop checkout flow (Synchronous execution within click thread)
+ * Start Paystack Pop checkout flow matching reference code 1:1
  */
 export function initiatePaystackSubscription({
   user,
@@ -349,80 +349,61 @@ export function initiatePaystackSubscription({
 }): void {
   const plan = SUBSCRIPTION_PLANS[planId];
   if (!plan) {
-    onError?.(new Error(`Invalid plan: ${planId}`));
+    if (typeof onError === 'function') onError(new Error(`Invalid plan: ${planId}`));
     return;
   }
 
   if (!plan.available) {
-    onError?.(new Error(`${plan.name} is not available for purchase yet.`));
+    if (typeof onError === 'function') onError(new Error(`${plan.name} is not available for purchase yet.`));
     return;
   }
 
   const userEmail = user.email || 'customer@madhouse.app';
-  const reference = `MH_SUB_${Date.now()}_${Math.floor(Math.random() * 1000000000 + 1)}`;
+  const reference = 'MH_SUB_' + Math.floor(Math.random() * 1000000000 + 1);
 
-  // 1. Record pending transaction in Breacher DB asynchronously in background
+  // Background transaction log
   logPendingTransaction(user, plan, reference).catch((err) =>
     console.warn('Background pending transaction log failed:', err)
   );
 
-  const paystackOptions = {
-    key: PAYSTACK_PUBLIC_KEY,
-    email: userEmail,
-    amount: plan.amountKobo,
-    currency: 'NGN',
-    ref: reference,
-    metadata: {
-      userId: user.id || user.email,
-      userEmail: userEmail,
-      planId: plan.id,
-      planName: plan.name,
-      termDays: plan.termDays,
-      custom_fields: [
-        { display_name: 'App', variable_name: 'app_name', value: 'MadHouse' },
-        { display_name: 'Plan', variable_name: 'plan_name', value: plan.name },
-        { display_name: 'Term', variable_name: 'term_duration', value: `${plan.termDays} Days` }
-      ]
-    },
-    callback: function (response: any) {
-      grantSubscriptionEntitlement(user, plan, response?.reference || reference, response)
-        .then((sub) => onSuccess(sub))
-        .catch((err) => onError?.(err instanceof Error ? err : new Error(String(err))));
-    },
-    onClose: function () {
-      onClose?.();
-    }
-  };
+  const paystackWindow = window as any;
+  if (!paystackWindow.PaystackPop || typeof paystackWindow.PaystackPop.setup !== 'function') {
+    if (typeof onError === 'function') onError(new Error('Paystack Payment Gateway SDK is loading. Please try again.'));
+    return;
+  }
 
-  // 2. Launch Paystack Pop iframe modal synchronously on the current click stack frame
   try {
-    const paystackWindow = window as any;
-    if (paystackWindow.PaystackPop && typeof paystackWindow.PaystackPop.setup === 'function') {
-      const handler = paystackWindow.PaystackPop.setup(paystackOptions);
-      handler.openIframe();
-    } else if (typeof paystackWindow.PaystackPop === 'function') {
-      const handler = new paystackWindow.PaystackPop();
-      if (typeof handler.newTransaction === 'function') {
-        handler.newTransaction(paystackOptions);
-      } else if (typeof handler.setup === 'function') {
-        handler.setup(paystackOptions).openIframe();
-      }
-    } else {
-      loadPaystackScript().then((loaded) => {
-        if (loaded && (window as any).PaystackPop) {
-          const ps = (window as any).PaystackPop;
-          if (typeof ps.setup === 'function') {
-            ps.setup(paystackOptions).openIframe();
-          } else if (typeof ps === 'function') {
-            new ps().newTransaction(paystackOptions);
-          }
-        } else {
-          onError?.(new Error('Paystack Payment Gateway SDK could not be loaded.'));
+    const handler = paystackWindow.PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: userEmail,
+      amount: plan.amount * 100, // Amount in Kobo
+      currency: 'NGN',
+      ref: reference,
+      onClose: function () {
+        if (typeof onClose === 'function') {
+          onClose();
         }
-      });
-    }
+      },
+      callback: function (response: { reference: string }) {
+        grantSubscriptionEntitlement(user, plan, response ? response.reference || reference : reference)
+          .then((sub) => {
+            if (typeof onSuccess === 'function') {
+              onSuccess(sub);
+            }
+          })
+          .catch((err) => {
+            if (typeof onError === 'function') {
+              onError(err instanceof Error ? err : new Error(String(err)));
+            }
+          });
+      }
+    });
+
+    handler.openIframe();
   } catch (err: any) {
-    console.error('Paystack popup launch error:', err);
-    onError?.(err instanceof Error ? err : new Error(String(err)));
+    console.error('Paystack Pop setup error:', err);
+    if (typeof onError === 'function') {
+      onError(err instanceof Error ? err : new Error(String(err)));
+    }
   }
 }
