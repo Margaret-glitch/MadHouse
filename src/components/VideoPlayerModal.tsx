@@ -198,6 +198,10 @@ export const VideoPlayerModal: React.FC = () => {
   };
 
   const handleDownload = async () => {
+    if (!hasActiveSub) {
+      handleOpenSubscriptionFlow();
+      return;
+    }
     const targetUrl = streamDetails?.bestProgressive?.url || videoRef.current?.src;
     if (!targetUrl || isDownloading) return;
 
@@ -1144,12 +1148,24 @@ export const VideoPlayerModal: React.FC = () => {
             )}
 
             <button
-              onClick={handleDownload}
+              onClick={() => {
+                if (!hasActiveSub) {
+                  handleOpenSubscriptionFlow();
+                } else {
+                  handleDownload();
+                }
+              }}
               disabled={isDownloading}
-              className="flex items-center space-x-1.5 bg-white/10 hover:bg-white/15 rounded-full text-xs font-medium px-4 py-2 flex-shrink-0 active:opacity-60 cursor-pointer transition-colors"
+              className={`flex items-center space-x-1.5 rounded-full text-xs font-medium px-4 py-2 flex-shrink-0 active:opacity-60 cursor-pointer transition-colors ${
+                !hasActiveSub
+                  ? 'bg-[#E5C058]/15 border border-[#E5C058]/30 text-[#E5C058] hover:bg-[#E5C058]/25'
+                  : 'bg-white/10 hover:bg-white/15 text-white'
+              }`}
             >
               {isDownloading ? (
                 <SpinnerGap size={16} weight="bold" className="animate-spin text-butterYellow" />
+              ) : !hasActiveSub ? (
+                <Lock size={16} weight="fill" className="text-[#E5C058]" />
               ) : (
                 <DownloadSimple size={16} weight="bold" />
               )}
@@ -1158,6 +1174,8 @@ export const VideoPlayerModal: React.FC = () => {
                   ? downloadProgress !== null
                     ? `${downloadProgress}%`
                     : 'Downloading...'
+                  : !hasActiveSub
+                  ? 'Download (VIP)'
                   : 'Download'}
               </span>
             </button>
@@ -1292,6 +1310,17 @@ export const VideoPlayerModal: React.FC = () => {
                         >
                           <Lock size={12} weight="fill" />
                           <span>Unlock</span>
+                        </button>
+                      ) : !hasActiveSub ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenSubscriptionFlow();
+                          }}
+                          className="w-8 h-8 rounded-full bg-[#E5C058]/15 border border-[#E5C058]/30 hover:bg-[#E5C058]/30 text-[#E5C058] flex items-center justify-center transition-all flex-shrink-0 cursor-pointer"
+                          title="Download requires VIP subscription"
+                        >
+                          <Lock size={14} weight="fill" />
                         </button>
                       ) : (
                         <a

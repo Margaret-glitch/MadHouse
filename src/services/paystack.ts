@@ -234,17 +234,11 @@ export async function grantSubscriptionEntitlement(
     updatedAt: now.toISOString()
   };
 
-  // 1. Cache in localStorage for immediate optimistic UI update
-  try {
-    localStorage.setItem(`madhouse_sub_${userKey}`, JSON.stringify(sub));
-    localStorage.setItem('madhouse_active_sub', JSON.stringify(sub));
-  } catch {}
-
-  // 2. Persist in Breacher DB: userData/subscription_{userKey}.json
+  // 1. Persist directly in Breacher DB: userData/subscription_{userKey}.json
   try {
     await createDocument(`userData/subscription_${userKey}`, sub);
 
-    // 3. Update master active subscriptions registry: userData/users_subscriptions.json
+    // 2. Update master active subscriptions registry: userData/users_subscriptions.json
     const master = (await readDocument<{ subscriptions?: Record<string, SubscriptionRecord> }>(
       'userData/users_subscriptions'
     )) || { subscriptions: {} };
@@ -257,7 +251,7 @@ export async function grantSubscriptionEntitlement(
       subscriptions: subs
     });
 
-    // 4. Update transaction status to verified/success
+    // 3. Update transaction status to verified/success
     const txUpdate: Partial<TransactionRecord> = {
       status: 'verified',
       updatedAt: now.toISOString(),
@@ -278,7 +272,7 @@ export async function grantSubscriptionEntitlement(
       paystackResponse
     });
 
-    // 5. Remove from pending transactions queue
+    // 4. Remove from pending transactions queue
     const queueDoc = await readDocument<{ transactions?: TransactionRecord[] }>(
       'userData/pending_transactions'
     );
@@ -297,7 +291,7 @@ export async function grantSubscriptionEntitlement(
 }
 
 /**
- * Fetch and validate user's current subscription from Breacher DB & cache
+ * Fetch and validate user's current subscription strictly from Breacher DB
  */
 export async function fetchUserSubscription(
   identifier?: string | null
@@ -305,51 +299,35 @@ export async function fetchUserSubscription(
   if (!identifier) return null;
   const userKey = sanitizeUserKey(identifier);
 
-  // 1. Check local cache first
-  let cached: SubscriptionRecord | null = null;
   try {
-    const raw = localStorage.getItem(`madhouse_sub_${userKey}`) || localStorage.getItem('madhouse_active_sub');
-    if (raw) {
-      cached = JSON.parse(raw);
-    }
-  } catch {}
-
-  try {
-    // 2. Fetch fresh document from Breacher DB: userData/subscription_{userKey}.json
+    // ALWAYS fetch fresh document directly from Breacher DB: userData/subscription_{userKey}.json
     const remote = await readDocument<SubscriptionRecord>(`userData/subscription_${userKey}`);
-    const record = remote || cached;
-
-    if (!record) return null;
+    if (!remote) return null;
 
     // Check expiry
-    const expiryTime = new Date(record.expiryDate).getTime();
+    const expiryTime = new Date(remote.expiryDate).getTime();
     const now = Date.now();
     const isExpired = now >= expiryTime;
     const daysLeft = isExpired ? 0 : Math.max(0, Math.ceil((expiryTime - now) / (1000 * 60 * 60 * 24)));
 
     const updated: SubscriptionRecord = {
-      ...record,
+      ...remote,
       status: isExpired ? 'expired' : 'active',
       entitlement: !isExpired,
       daysLeft
     };
 
-    // If status changed to expired, update remote doc & cache
-    if (isExpired && record.status === 'active') {
+    // If status changed to expired, update Breacher DB doc
+    if (isExpired && remote.status === 'active') {
       try {
         await createDocument(`userData/subscription_${userKey}`, updated);
       } catch {}
     }
 
-    try {
-      localStorage.setItem(`madhouse_sub_${userKey}`, JSON.stringify(updated));
-      localStorage.setItem('madhouse_active_sub', JSON.stringify(updated));
-    } catch {}
-
     return updated;
   } catch (err) {
-    console.warn('Could not fetch remote subscription, falling back to cached:', err);
-    return cached;
+    console.warn('Could not fetch subscription from Breacher DB:', err);
+    return null;
   }
 }
 
